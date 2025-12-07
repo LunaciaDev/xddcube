@@ -1,2 +1,6 @@
-build/
+.cache/
+.vscode/
+debug/
+release/
 xddcube
+compile_commands.json

@@ -2,7 +2,7 @@ FROM quay.io/fedora/fedora-minimal:42
 
 # No pulling optional dependencies
 RUN echo install_weak_deps=False >> /etc/dnf/dnf.conf && \
-    dnf install -y git sudo openssh-server nano wget tar bash-completion xauth clang make glfw-devel glslang vulkan-tools vulkan-loader-devel mesa-vulkan-drivers vulkan-validation-layers-devel libXxf86vm-devel --skip-unavailable && \
+    dnf install -y git sudo openssh-server nano wget tar bash-completion xauth clang make glfw-devel glslang vulkan-tools vulkan-loader-devel mesa-vulkan-drivers vulkan-validation-layers vulkan-utility-libraries-devel libXxf86vm-devel --skip-unavailable && \
     dnf clean all && rm -rf /var/cache/dnf
 
 # Manually install eza

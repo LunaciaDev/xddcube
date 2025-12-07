@@ -1,23 +1,39 @@
 CC := clang
-CFLAGS := -std=c99 -MMD -MP
+CFLAGS := -std=c99 -MMD -MP -Wall -Werror
 LDFLAGS := -lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi
 SRC_DIR := src
-BUILD_DIR := build
+DEBUG_DIR := debug
+RELEASE_DIR := release
 
 SRCS := $(shell find $(SRC_DIR) -name '*.c')
-OBJS := $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
-DEPS := $(OBJS:.o=.d)
+DEBUG_OBJS := $(SRCS:$(SRC_DIR)/%.c=$(DEBUG_DIR)/%.o)
+DEBUG_DEPS := $(DEBUG_OBJS:.o=.d)
+RELEASE_OBJS := $(SRCS:$(SRC_DIR)/%.c=$(RELEASE_DIR)/%.o)
+RELEASE_DEPS := $(RELEASE_OBJS:.o=.d)
 
-xddcube: $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o $@ $(LDFLAGS)
+all: prep debug
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
-	mkdir -p $(dir $@)
+prep:
+	mkdir -p $(DEBUG_DIR) $(RELEASE_DIR)
+
+debug: CFLAGS += -DDEBUG -g
+debug: $(DEBUG_OBJS)
+	$(CC) $(CFLAGS) $^ -o xddcube $(LDFLAGS)
+
+$(DEBUG_DIR)/%.o: $(SRC_DIR)/%.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+release: CFLAGS += -O2
+release: $(RELEASE_OBJS)
+	$(CC) $(CFLAGS) $^ -o xddcube $(LDFLAGS)
+
+$(RELEASE_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 .PHONY: clean
 clean:
-	rm -r $(BUILD_DIR)
+	rm -r $(RELEASE_DIR)
+	rm -r $(DEBUG_DIR)
 	rm xddcube
 
 -include $(DEPS)
