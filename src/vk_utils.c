@@ -1,7 +1,6 @@
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
 #include <stdbool.h>
 #include <string.h>
+#include <vulkan/vulkan_core.h>
 
 #include "common.h"
 
@@ -36,4 +35,48 @@ bool hasReqValidationLayerSupport(
     }
 
     return true;
+}
+
+bool               isDeviceSuitable(VkPhysicalDevice device) { return true; }
+
+QueueFamilyIndices findQueueFamilies(const ApplicationData* app_data) {
+    QueueFamilyIndices indices = {.has_value_bitmap = 0, .graphic_family = 0};
+
+    uint32_t           queue_family_count = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(
+        app_data->physical_device, &queue_family_count, NULL
+    );
+
+    VkQueueFamilyProperties queue_families[queue_family_count];
+    vkGetPhysicalDeviceQueueFamilyProperties(
+        app_data->physical_device, &queue_family_count, queue_families
+    );
+
+    for (uint32_t queue_family_index = 0;
+         queue_family_index < queue_family_count; queue_family_index++) {
+        if (queue_families[queue_family_index].queueFlags &
+            VK_QUEUE_GRAPHICS_BIT) {
+            indices.graphic_family = queue_family_index;
+            indices.has_value_bitmap += 0b1;
+        }
+
+        {
+            VkBool32 present_support = false;
+            vkGetPhysicalDeviceSurfaceSupportKHR(
+                app_data->physical_device, queue_family_index,
+                app_data->surface, &present_support
+            );
+
+            if (present_support) {
+                indices.present_family = queue_family_index;
+                indices.has_value_bitmap += 0b10;
+            }
+        }
+
+        if (indices.has_value_bitmap == 0b11) {
+            break;
+        }
+    }
+
+    return indices;
 }
