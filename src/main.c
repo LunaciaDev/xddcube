@@ -215,6 +215,11 @@ static void createImageView(void) {
     }
 }
 
+
+static void createGraphicPipeline(void) {
+    
+}
+
 static void initVulkan(void) {
 #ifdef DEBUG
     if (!hasReqValidationLayerSupport(
@@ -268,6 +273,7 @@ static void initVulkan(void) {
     createLogicalDevice();
     createSwapChain();
     createImageView();
+    createGraphicPipeline();
 }
 
 static void mainLoop(void) {
