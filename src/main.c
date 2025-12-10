@@ -1,22 +1,27 @@
+#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <vulkan/vulkan_core.h>
+#include <stdlib.h>
 
 #include "common.h"
 
-static const uint32_t  WINDOW_WIDTH = 800;
-static const uint32_t  WINDOW_HEIGHT = 600;
-static const uint32_t  VALIDATION_LAYERS_SIZE = 1;
-static const char*     VALIDATION_LAYERS[] = {"VK_LAYER_KHRONOS_validation"};
+#define WINDOW_WIDTH 800
+#define WINDOW_HEIGHT 600
+
+#define VALIDATION_LAYERS_SIZE 1
+static const char* VALIDATION_LAYERS[] = {"VK_LAYER_KHRONOS_validation"};
+
+const uint32_t     REQUIRED_DEVICE_EXTENSION_SIZE = 1;
+const char* REQUIRED_DEVICE_EXTENSION[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
 static ApplicationData app_data = {};
 
 // =================================
 
-static void initWindow() {
+static void initWindow(void) {
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -26,7 +31,7 @@ static void initWindow() {
         glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "xddcube", NULL, NULL);
 }
 
-static int selectPhysicalDevice() {
+static void selectPhysicalDevice(void) {
     app_data.physical_device = VK_NULL_HANDLE;
 
     uint32_t device_count = 0;
@@ -34,7 +39,7 @@ static int selectPhysicalDevice() {
 
     if (device_count == 0) {
         printf("Cannot find any GPU with Vulkan support.\n");
-        return -1;
+        abort();
     }
 
     VkPhysicalDevice devices[device_count];
@@ -44,7 +49,7 @@ static int selectPhysicalDevice() {
 
     for (uint32_t device_index = 0; device_index < device_count;
          device_index++) {
-        if (isDeviceSuitable(devices[device_count])) {
+        if (isDeviceSuitable(devices[device_index], app_data.surface)) {
             app_data.physical_device = devices[device_index];
             break;
         }
@@ -52,32 +57,31 @@ static int selectPhysicalDevice() {
 
     if (app_data.physical_device == VK_NULL_HANDLE) {
         printf("Cannot find any suitable GPU.\n");
-        return -1;
+        abort();
     }
-
-    return 0;
 }
 
-static int createLogicalDevice() {
-    const float        queue_priority = 1.0f;
+static void createLogicalDevice(void) {
+    QueueFamilyIndices family_indices =
+        findQueueFamilies(app_data.physical_device, app_data.surface);
 
-    QueueFamilyIndices indices = findQueueFamilies(&app_data);
-
-    VkDeviceQueueCreateInfo queue_create_info = {
-        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-        .queueFamilyIndex = indices.graphic_family,
-        .queueCount = 1,
-        .pQueuePriorities = &queue_priority,
-    };
+    uint32_t                 create_info_size;
+    VkDeviceQueueCreateInfo* queue_create_info = makeQueueCreateInfo(
+        &create_info_size, 1.0f,
+        (uint32_t[]){family_indices.graphic_family,
+                     family_indices.present_family},
+        2
+    );
 
     VkPhysicalDeviceFeatures device_feature = {};
 
     VkDeviceCreateInfo       create_info = {
               .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-              .pQueueCreateInfos = &queue_create_info,
-              .queueCreateInfoCount = 1,
+              .pQueueCreateInfos = queue_create_info,
+              .queueCreateInfoCount = create_info_size,
               .pEnabledFeatures = &device_feature,
-              .enabledExtensionCount = 0,
+              .enabledExtensionCount = REQUIRED_DEVICE_EXTENSION_SIZE,
+              .ppEnabledExtensionNames = REQUIRED_DEVICE_EXTENSION,
 #ifdef DEBUG
         .enabledLayerCount = VALIDATION_LAYERS_SIZE,
         .ppEnabledLayerNames = VALIDATION_LAYERS
@@ -91,24 +95,102 @@ static int createLogicalDevice() {
             &app_data.vulkan_device
         ) != VK_SUCCESS) {
         printf("Failed to create logical device.\n");
-        return -1;
+        destroyQueueCreateInfo(queue_create_info);
+        abort();
     }
+    destroyQueueCreateInfo(queue_create_info);
 
     vkGetDeviceQueue(
-        app_data.vulkan_device, indices.graphic_family, 0,
+        app_data.vulkan_device, family_indices.graphic_family, 0,
         &app_data.graphic_queue
     );
-
-    return 0;
+    vkGetDeviceQueue(
+        app_data.vulkan_device, family_indices.present_family, 0,
+        &app_data.present_queue
+    );
 }
 
-static int initVulkan() {
+static void createSwapChain() {
+    SwapchainSupportDetail* swapchain_support =
+        querySwapchainSupport(app_data.physical_device, app_data.surface);
+    QueueFamilyIndices queue_family_indices =
+        findQueueFamilies(app_data.physical_device, app_data.surface);
+
+    VkSurfaceFormatKHR surface_format = chooseSwapSurfaceFormat(
+        swapchain_support->formats, swapchain_support->format_size
+    );
+    VkExtent2D extent = chooseSwapExtent(
+        &swapchain_support->capabilities, app_data.window_handle
+    );
+    VkPresentModeKHR present_mode = chooseSwapPresentMode(
+        swapchain_support->present_mode, swapchain_support->present_mode_size
+    );
+
+    uint32_t image_count = swapchain_support->capabilities.minImageCount + 1;
+    if (swapchain_support->capabilities.maxImageCount != 0 &&
+        image_count > swapchain_support->capabilities.maxImageCount) {
+        image_count = swapchain_support->capabilities.maxImageCount;
+    }
+
+    VkSwapchainCreateInfoKHR swapchain_create_info = {
+        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .surface = app_data.surface,
+        .minImageCount = image_count,
+        .imageFormat = surface_format.format,
+        .imageColorSpace = surface_format.colorSpace,
+        .imageExtent = extent,
+        .imageArrayLayers = 1,
+        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        .preTransform = swapchain_support->capabilities.currentTransform,
+        .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        .presentMode = present_mode,
+        .clipped = VK_TRUE,
+        .oldSwapchain = VK_NULL_HANDLE
+    };
+
+    if (queue_family_indices.graphic_family !=
+        queue_family_indices.present_family) {
+        swapchain_create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        swapchain_create_info.queueFamilyIndexCount = 2;
+        swapchain_create_info.pQueueFamilyIndices =
+            (uint32_t[]){queue_family_indices.graphic_family,
+                         queue_family_indices.present_family};
+    } else {
+        swapchain_create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    }
+
+    if (vkCreateSwapchainKHR(
+            app_data.vulkan_device, &swapchain_create_info, NULL,
+            &app_data.swapchain
+        )) {
+        printf("Failed to create swapchain\n");
+        abort();
+    }
+
+    vkGetSwapchainImagesKHR(
+        app_data.vulkan_device, app_data.swapchain,
+        &app_data.swapchain_image_size, NULL
+    );
+    app_data.swapchain_images =
+        malloc(sizeof(VkImage) * app_data.swapchain_image_size);
+    vkGetSwapchainImagesKHR(
+        app_data.vulkan_device, app_data.swapchain,
+        &app_data.swapchain_image_size, app_data.swapchain_images
+    );
+
+    app_data.swapchain_format = surface_format.format;
+    app_data.swapchain_extent = extent;
+
+    destroySwapchainSupportDetail(swapchain_support);
+}
+
+static void initVulkan(void) {
 #ifdef DEBUG
     if (!hasReqValidationLayerSupport(
             VALIDATION_LAYERS_SIZE, VALIDATION_LAYERS
         )) {
         printf("Requested validation layers support unavailable.\n");
-        return -1;
+        abort();
     }
 #endif
 
@@ -140,46 +222,43 @@ static int initVulkan() {
 
     if (vkCreateInstance(&create_info, NULL, &app_data.vulkan_instance) !=
         VK_SUCCESS) {
-        return -1;
+        abort();
     }
 
-    if (glfwCreateWindowSurface(app_data.vulkan_instance, app_data.window_handle, NULL, &app_data.surface) != VK_SUCCESS) {
+    if (glfwCreateWindowSurface(
+            app_data.vulkan_instance, app_data.window_handle, NULL,
+            &app_data.surface
+        ) != VK_SUCCESS) {
         printf("Failed to create window surface\n");
-        return -1;
+        abort();
     }
 
-    if (selectPhysicalDevice() != 0) {
-        return -1;
-    }
-
-    if (createLogicalDevice() != 0) {
-        return -1;
-    }
-
-    return 0;
+    selectPhysicalDevice();
+    createLogicalDevice();
+    createSwapChain();
 }
 
-static void mainLoop() {
+static void mainLoop(void) {
     while (!glfwWindowShouldClose(app_data.window_handle)) {
         glfwPollEvents();
     }
 }
 
-static void cleanup() {
-    vkDestroyInstance(app_data.vulkan_instance, NULL);
+static void cleanup(void) {
+    vkDestroySwapchainKHR(app_data.vulkan_device, app_data.swapchain, NULL);
     vkDestroyDevice(app_data.vulkan_device, NULL);
+    vkDestroyInstance(app_data.vulkan_instance, NULL);
+
+    // destroy application data
+    free(app_data.swapchain_images);
 
     glfwDestroyWindow(app_data.window_handle);
     glfwTerminate();
 }
 
-int main() {
+int main(void) {
     initWindow();
-
-    if (initVulkan() != 0) {
-        printf("Cannot create a vulkan instance\n");
-        return -1;
-    }
+    initVulkan();
 
     printf("Initialization complete.\n");
 

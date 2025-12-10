@@ -6,19 +6,41 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+extern const char*    REQUIRED_DEVICE_EXTENSION[];
+extern const uint32_t REQUIRED_DEVICE_EXTENSION_SIZE;
+
 typedef struct QueueFamilyIndices {
     uint8_t  has_value_bitmap;
     uint32_t graphic_family;
     uint32_t present_family;
 } QueueFamilyIndices;
 
+typedef struct SwapchainSupportDetail {
+    VkSurfaceCapabilitiesKHR capabilities;
+    VkSurfaceFormatKHR*      formats;
+    uint32_t                 format_size;
+    VkPresentModeKHR*        present_mode;
+    uint32_t                 present_mode_size;
+} SwapchainSupportDetail;
+
 typedef struct ApplicationData {
     GLFWwindow*      window_handle;
     VkInstance       vulkan_instance;
-    VkPhysicalDevice physical_device;
+
     VkDevice         vulkan_device;
-    VkQueue          graphic_queue;
+    VkPhysicalDevice physical_device;
+
     VkSurfaceKHR     surface;
+
+    VkQueue          graphic_queue;
+    VkQueue          present_queue;
+
+    VkSwapchainKHR   swapchain;
+
+    VkImage*         swapchain_images;
+    uint32_t         swapchain_image_size;
+    VkFormat         swapchain_format;
+    VkExtent2D       swapchain_extent;
 } ApplicationData;
 
 bool hasReqValidationLayerSupport(
@@ -26,9 +48,38 @@ bool hasReqValidationLayerSupport(
     const char**   validation_layers
 );
 
-bool isDeviceSuitable(VkPhysicalDevice device);
+bool isDeviceSuitable(
+    const VkPhysicalDevice device,
+    const VkSurfaceKHR     surface
+);
 
 QueueFamilyIndices
-findQueueFamilies(const ApplicationData* app_data);
+findQueueFamilies(const VkPhysicalDevice device, const VkSurfaceKHR surface);
+
+VkDeviceQueueCreateInfo* makeQueueCreateInfo(
+    uint32_t* create_info_size,
+    float     priority,
+    uint32_t  family_indices[],
+    uint32_t  indices_size
+);
+void destroyQueueCreateInfo(VkDeviceQueueCreateInfo* queue_create_info);
+
+SwapchainSupportDetail*
+querySwapchainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
+
+VkSurfaceFormatKHR chooseSwapSurfaceFormat(
+    const VkSurfaceFormatKHR* formats,
+    uint32_t                  format_size
+);
+VkExtent2D chooseSwapExtent(
+    const VkSurfaceCapabilitiesKHR* capabilities,
+    GLFWwindow*                     window_handle
+);
+VkPresentModeKHR chooseSwapPresentMode(
+    const VkPresentModeKHR* present_mode,
+    uint32_t                present_mode_size
+);
+
+void destroySwapchainSupportDetail(SwapchainSupportDetail* support_detail);
 
 #endif
