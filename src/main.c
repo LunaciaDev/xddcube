@@ -1,4 +1,3 @@
-#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <stdbool.h>
@@ -110,7 +109,7 @@ static void createLogicalDevice(void) {
     );
 }
 
-static void createSwapChain() {
+static void createSwapChain(void) {
     SwapchainSupportDetail* swapchain_support =
         querySwapchainSupport(app_data.physical_device, app_data.surface);
     QueueFamilyIndices queue_family_indices =
@@ -184,6 +183,38 @@ static void createSwapChain() {
     destroySwapchainSupportDetail(swapchain_support);
 }
 
+static void createImageView(void) {
+    app_data.swapchain_image_views =
+        malloc(sizeof(VkImageView) * app_data.swapchain_image_size);
+
+    for (uint32_t index = 0; index < app_data.swapchain_image_size; index++) {
+        VkImageViewCreateInfo view_create_info = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .image = app_data.swapchain_images[index],
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = app_data.swapchain_format,
+            .components =
+                {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
+                 VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY},
+            .subresourceRange = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        };
+
+        if (vkCreateImageView(
+                app_data.vulkan_device, &view_create_info, NULL,
+                &app_data.swapchain_image_views[index]
+            ) != VK_SUCCESS) {
+            printf("Failed to create image view\n");
+            abort();
+        }
+    }
+}
+
 static void initVulkan(void) {
 #ifdef DEBUG
     if (!hasReqValidationLayerSupport(
@@ -236,6 +267,7 @@ static void initVulkan(void) {
     selectPhysicalDevice();
     createLogicalDevice();
     createSwapChain();
+    createImageView();
 }
 
 static void mainLoop(void) {
@@ -245,12 +277,19 @@ static void mainLoop(void) {
 }
 
 static void cleanup(void) {
+    for (uint32_t index = 0; index < app_data.swapchain_image_size; index++) {
+        vkDestroyImageView(
+            app_data.vulkan_device, app_data.swapchain_image_views[index], NULL
+        );
+    }
+
     vkDestroySwapchainKHR(app_data.vulkan_device, app_data.swapchain, NULL);
     vkDestroyDevice(app_data.vulkan_device, NULL);
     vkDestroyInstance(app_data.vulkan_instance, NULL);
 
     // destroy application data
     free(app_data.swapchain_images);
+    free(app_data.swapchain_image_views);
 
     glfwDestroyWindow(app_data.window_handle);
     glfwTerminate();

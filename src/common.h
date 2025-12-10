@@ -38,6 +38,7 @@ typedef struct ApplicationData {
     VkSwapchainKHR   swapchain;
 
     VkImage*         swapchain_images;
+    VkImageView*     swapchain_image_views;
     uint32_t         swapchain_image_size;
     VkFormat         swapchain_format;
     VkExtent2D       swapchain_extent;
