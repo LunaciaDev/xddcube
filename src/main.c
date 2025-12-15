@@ -474,10 +474,6 @@ static void cleanup(void) {
     vkDestroySurfaceKHR(app_data.vulkan_instance, app_data.surface, NULL);
     vkDestroyInstance(app_data.vulkan_instance, NULL);
 
-    // destroy application data
-    free(app_data.swapchain_images);
-    free(app_data.swapchain_image_views);
-
     glfwDestroyWindow(app_data.window_handle);
     glfwTerminate();
 }
