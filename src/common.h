@@ -1,6 +1,7 @@
 #ifndef XDD__COMMON_H__
 #define XDD__COMMON_H__
 
+#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <stdbool.h>
@@ -36,6 +37,10 @@ typedef struct ApplicationData {
     VkQueue          present_queue;
 
     VkSwapchainKHR   swapchain;
+
+    VkRenderPass     render_pass;
+    VkPipelineLayout pipeline_layout;
+    VkPipeline       pipeline;
 
     VkImage*         swapchain_images;
     VkImageView*     swapchain_image_views;
@@ -82,5 +87,11 @@ VkPresentModeKHR chooseSwapPresentMode(
 );
 
 void destroySwapchainSupportDetail(SwapchainSupportDetail* support_detail);
+
+VkShaderModule createShaderModule(char* code, int64_t size, VkDevice device);
+
+// ================
+
+char* readFile(char* file, int64_t* read_size);
 
 #endif

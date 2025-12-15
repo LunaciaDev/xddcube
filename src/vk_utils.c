@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -277,4 +278,22 @@ VkExtent2D chooseSwapExtent(
     );
 
     return (VkExtent2D){width, height};
+}
+
+VkShaderModule createShaderModule(char* code, int64_t size, VkDevice device) {
+    VkShaderModuleCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .codeSize = size,
+        .pCode = (uint32_t*)code
+    };
+
+    VkShaderModule shader_module;
+
+    if (vkCreateShaderModule(device, &create_info, NULL, &shader_module) !=
+        VK_SUCCESS) {
+        printf("Cannot create shader module\n");
+        abort();
+    }
+
+    return shader_module;
 }

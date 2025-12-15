@@ -1,3 +1,4 @@
+#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <stdbool.h>
@@ -15,6 +16,11 @@ static const char* VALIDATION_LAYERS[] = {"VK_LAYER_KHRONOS_validation"};
 
 const uint32_t     REQUIRED_DEVICE_EXTENSION_SIZE = 1;
 const char* REQUIRED_DEVICE_EXTENSION[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
+#define DYNAMIC_STATES_SIZE 2
+static const uint32_t DYNAMIC_STATES[] = {
+    VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR
+};
 
 static ApplicationData app_data = {};
 
@@ -215,9 +221,171 @@ static void createImageView(void) {
     }
 }
 
+static void createRenderPass(void) {
+    VkAttachmentDescription color_attachment = {
+        .format = app_data.swapchain_format,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    };
+
+    VkAttachmentReference color_attachment_ref = {
+        .attachment = 0, .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    };
+
+    VkSubpassDescription subpass = {
+        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &color_attachment_ref
+    };
+
+    VkRenderPassCreateInfo render_pass_info = {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+        .attachmentCount = 1,
+        .pAttachments = &color_attachment,
+        .subpassCount = 1,
+        .pSubpasses = &subpass,
+    };
+
+    if (vkCreateRenderPass(
+            app_data.vulkan_device, &render_pass_info, NULL,
+            &app_data.render_pass
+        ) != VK_SUCCESS) {
+        printf("Cannot create render pass");
+        abort();
+    }
+}
 
 static void createGraphicPipeline(void) {
-    
+    int64_t frag_shader_size, vert_shader_size;
+
+    char*   frag_shader = readFile("shaders/frag.spv", &frag_shader_size);
+    char*   vert_shader = readFile("shaders/vert.spv", &vert_shader_size);
+
+    VkShaderModule frag_shader_module = createShaderModule(
+        frag_shader, frag_shader_size, app_data.vulkan_device
+    );
+    VkShaderModule vert_shader_module = createShaderModule(
+        vert_shader, vert_shader_size, app_data.vulkan_device
+    );
+
+    VkPipelineShaderStageCreateInfo vert_stage_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .stage = VK_SHADER_STAGE_VERTEX_BIT,
+        .module = vert_shader_module,
+        .pName = "main"
+    };
+
+    VkPipelineShaderStageCreateInfo frag_stage_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .module = frag_shader_module,
+        .pName = "main"
+    };
+
+    VkPipelineShaderStageCreateInfo shader_stage_info_vec[] = {
+        vert_stage_info, frag_stage_info
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamic_state_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+        .dynamicStateCount = DYNAMIC_STATES_SIZE,
+        .pDynamicStates = DYNAMIC_STATES
+    };
+
+    VkPipelineVertexInputStateCreateInfo vertex_input_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+        .vertexBindingDescriptionCount = 0,
+        .vertexAttributeDescriptionCount = 0
+    };
+
+    VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+        .primitiveRestartEnable = VK_FALSE
+    };
+
+    VkPipelineViewportStateCreateInfo viewport_state_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+        .viewportCount = 1,
+        .scissorCount = 1
+    };
+
+    VkPipelineRasterizationStateCreateInfo rasterization_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+        .depthClampEnable = VK_FALSE,
+        .rasterizerDiscardEnable = VK_FALSE,
+        .polygonMode = VK_POLYGON_MODE_FILL,
+        .lineWidth = 1.0,
+        .cullMode = VK_CULL_MODE_BACK_BIT,
+        .frontFace = VK_FRONT_FACE_CLOCKWISE,
+        .depthBiasEnable = VK_FALSE
+    };
+
+    VkPipelineMultisampleStateCreateInfo multisample_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+        .sampleShadingEnable = VK_FALSE,
+        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT
+    };
+
+    VkPipelineColorBlendAttachmentState color_blend_attachment = {
+        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                          VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+        .blendEnable = VK_FALSE
+    };
+
+    VkPipelineColorBlendStateCreateInfo color_blending = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+        .logicOpEnable = VK_FALSE,
+        .attachmentCount = 1,
+        .pAttachments = &color_blend_attachment
+    };
+
+    VkPipelineLayoutCreateInfo pipeline_layout_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+    };
+
+    if (vkCreatePipelineLayout(
+            app_data.vulkan_device, &pipeline_layout_info, NULL,
+            &app_data.pipeline_layout
+        ) != VK_SUCCESS) {
+        printf("Cannot create pipeline layout\n");
+        abort();
+    }
+
+    VkGraphicsPipelineCreateInfo graphic_pipeline_info = {
+        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        .stageCount = 2,
+        .pStages = shader_stage_info_vec,
+        .pVertexInputState = &vertex_input_info,
+        .pInputAssemblyState = &input_assembly_info,
+        .pViewportState = &viewport_state_info,
+        .pRasterizationState = &rasterization_info,
+        .pMultisampleState = &multisample_info,
+        .pColorBlendState = &color_blending,
+        .pDynamicState = &dynamic_state_info,
+        .layout = app_data.pipeline_layout,
+        .renderPass = app_data.render_pass,
+        .subpass = 0
+    };
+
+    if (vkCreateGraphicsPipelines(
+            app_data.vulkan_device, VK_NULL_HANDLE, 1, &graphic_pipeline_info,
+            NULL, &app_data.pipeline
+        ) != VK_SUCCESS) {
+        printf("Failed to create graphic pipeline\n");
+        abort();
+    }
+
+    vkDestroyShaderModule(app_data.vulkan_device, frag_shader_module, NULL);
+    vkDestroyShaderModule(app_data.vulkan_device, vert_shader_module, NULL);
+
+    free(frag_shader);
+    free(vert_shader);
 }
 
 static void initVulkan(void) {
@@ -273,6 +441,7 @@ static void initVulkan(void) {
     createLogicalDevice();
     createSwapChain();
     createImageView();
+    createRenderPass();
     createGraphicPipeline();
 }
 
@@ -283,6 +452,12 @@ static void mainLoop(void) {
 }
 
 static void cleanup(void) {
+    vkDestroyPipeline(app_data.vulkan_device, app_data.pipeline, NULL);
+    vkDestroyPipelineLayout(
+        app_data.vulkan_device, app_data.pipeline_layout, NULL
+    );
+    vkDestroyRenderPass(app_data.vulkan_device, app_data.render_pass, NULL);
+
     for (uint32_t index = 0; index < app_data.swapchain_image_size; index++) {
         vkDestroyImageView(
             app_data.vulkan_device, app_data.swapchain_image_views[index], NULL
