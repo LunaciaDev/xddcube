@@ -1,7 +1,6 @@
 #ifndef XDD__COMMON_H__
 #define XDD__COMMON_H__
 
-#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <stdbool.h>
@@ -44,6 +43,7 @@ typedef struct ApplicationData {
 
     VkImage*         swapchain_images;
     VkImageView*     swapchain_image_views;
+    VkFramebuffer*   swapchain_frame_buffers;
     uint32_t         swapchain_image_size;
     VkFormat         swapchain_format;
     VkExtent2D       swapchain_extent;

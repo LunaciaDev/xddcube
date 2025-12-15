@@ -1,6 +1,6 @@
-#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -18,8 +18,8 @@ static const char* VALIDATION_LAYERS[] = {"VK_LAYER_KHRONOS_validation"};
 
 #endif
 
-const uint32_t     REQUIRED_DEVICE_EXTENSION_SIZE = 1;
-const char* REQUIRED_DEVICE_EXTENSION[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+const uint32_t REQUIRED_DEVICE_EXTENSION_SIZE = 1;
+const char*    REQUIRED_DEVICE_EXTENSION[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
 #define DYNAMIC_STATES_SIZE 2
 static const uint32_t DYNAMIC_STATES[] = {
@@ -182,6 +182,7 @@ static void createSwapChain(void) {
     );
     app_data.swapchain_images =
         malloc(sizeof(VkImage) * app_data.swapchain_image_size);
+    assert(app_data.swapchain_images != NULL);
     vkGetSwapchainImagesKHR(
         app_data.vulkan_device, app_data.swapchain,
         &app_data.swapchain_image_size, app_data.swapchain_images
@@ -196,6 +197,7 @@ static void createSwapChain(void) {
 static void createImageView(void) {
     app_data.swapchain_image_views =
         malloc(sizeof(VkImageView) * app_data.swapchain_image_size);
+    assert(app_data.swapchain_image_views != NULL);
 
     for (uint32_t index = 0; index < app_data.swapchain_image_size; index++) {
         VkImageViewCreateInfo view_create_info = {
@@ -392,6 +394,34 @@ static void createGraphicPipeline(void) {
     free(vert_shader);
 }
 
+static void createFramebuffers(void) {
+    app_data.swapchain_frame_buffers =
+        malloc(sizeof(VkFramebuffer) * app_data.swapchain_image_size);
+    assert(app_data.swapchain_frame_buffers != NULL);
+
+    for (uint32_t index = 0; index < app_data.swapchain_image_size; index++) {
+        VkImageView attachment[] = {app_data.swapchain_image_views[index]};
+
+        VkFramebufferCreateInfo frame_create_info = {
+            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            .renderPass = app_data.render_pass,
+            .attachmentCount = 1,
+            .pAttachments = attachment,
+            .width = app_data.swapchain_extent.width,
+            .height = app_data.swapchain_extent.height,
+            .layers = 1
+        };
+
+        if (vkCreateFramebuffer(
+                app_data.vulkan_device, &frame_create_info, NULL,
+                app_data.swapchain_frame_buffers + index
+            ) != VK_SUCCESS) {
+            printf("Failed to create framebuffer");
+            abort();
+        }
+    }
+}
+
 static void initVulkan(void) {
 #ifdef DEBUG
     if (!hasReqValidationLayerSupport(
@@ -447,6 +477,7 @@ static void initVulkan(void) {
     createImageView();
     createRenderPass();
     createGraphicPipeline();
+    createFramebuffers();
 }
 
 static void mainLoop(void) {
@@ -457,6 +488,13 @@ static void mainLoop(void) {
 }
 
 static void cleanup(void) {
+    for (uint32_t index = 0; index < app_data.swapchain_image_size; index++) {
+        vkDestroyFramebuffer(
+            app_data.vulkan_device, app_data.swapchain_frame_buffers[index],
+            NULL
+        );
+    }
+
     vkDestroyPipeline(app_data.vulkan_device, app_data.pipeline, NULL);
     vkDestroyPipelineLayout(
         app_data.vulkan_device, app_data.pipeline_layout, NULL
