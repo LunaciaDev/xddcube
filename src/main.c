@@ -422,6 +422,37 @@ static void createFramebuffers(void) {
     }
 }
 
+static void createCommandPool(void) {
+    QueueFamilyIndices queue_family_indices =
+        findQueueFamilies(app_data.physical_device, app_data.surface);
+
+    VkCommandPoolCreateInfo pool_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        .queueFamilyIndex = queue_family_indices.graphic_family
+    };
+
+    vkCreateCommandPool(
+        app_data.vulkan_device, &pool_info, NULL, &app_data.command_pool
+    );
+}
+
+static void createCommandBuffer(void) {
+    VkCommandBufferAllocateInfo allocate_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandPool = app_data.command_pool,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = 1
+    };
+
+    if (vkAllocateCommandBuffers(
+            app_data.vulkan_device, &allocate_info, &app_data.command_buffer
+        ) != VK_SUCCESS) {
+        printf("Cannot allocate command buffer");
+        abort();
+    }
+}
+
 static void initVulkan(void) {
 #ifdef DEBUG
     if (!hasReqValidationLayerSupport(
@@ -478,6 +509,8 @@ static void initVulkan(void) {
     createRenderPass();
     createGraphicPipeline();
     createFramebuffers();
+    createCommandPool();
+    createCommandBuffer();
 }
 
 static void mainLoop(void) {
@@ -488,6 +521,8 @@ static void mainLoop(void) {
 }
 
 static void cleanup(void) {
+    vkDestroyCommandPool(app_data.vulkan_device, app_data.command_pool, NULL);
+
     for (uint32_t index = 0; index < app_data.swapchain_image_size; index++) {
         vkDestroyFramebuffer(
             app_data.vulkan_device, app_data.swapchain_frame_buffers[index],

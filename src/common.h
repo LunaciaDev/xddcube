@@ -37,6 +37,9 @@ typedef struct ApplicationData {
 
     VkSwapchainKHR   swapchain;
 
+    VkCommandPool    command_pool;
+    VkCommandBuffer  command_buffer;
+
     VkRenderPass     render_pass;
     VkPipelineLayout pipeline_layout;
     VkPipeline       pipeline;
@@ -89,6 +92,8 @@ VkPresentModeKHR chooseSwapPresentMode(
 void destroySwapchainSupportDetail(SwapchainSupportDetail* support_detail);
 
 VkShaderModule createShaderModule(char* code, int64_t size, VkDevice device);
+
+void recordCommandBuffer(uint32_t image_index, ApplicationData* app_data);
 
 // ================
 
