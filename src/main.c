@@ -11,8 +11,12 @@
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
+#ifdef DEBUG
+
 #define VALIDATION_LAYERS_SIZE 1
 static const char* VALIDATION_LAYERS[] = {"VK_LAYER_KHRONOS_validation"};
+
+#endif
 
 const uint32_t     REQUIRED_DEVICE_EXTENSION_SIZE = 1;
 const char* REQUIRED_DEVICE_EXTENSION[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
@@ -448,6 +452,7 @@ static void initVulkan(void) {
 static void mainLoop(void) {
     while (!glfwWindowShouldClose(app_data.window_handle)) {
         glfwPollEvents();
+        break;
     }
 }
 
@@ -466,6 +471,7 @@ static void cleanup(void) {
 
     vkDestroySwapchainKHR(app_data.vulkan_device, app_data.swapchain, NULL);
     vkDestroyDevice(app_data.vulkan_device, NULL);
+    vkDestroySurfaceKHR(app_data.vulkan_instance, app_data.surface, NULL);
     vkDestroyInstance(app_data.vulkan_instance, NULL);
 
     // destroy application data
