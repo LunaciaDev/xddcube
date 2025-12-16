@@ -300,13 +300,18 @@ VkShaderModule createShaderModule(char* code, int64_t size, VkDevice device) {
     return shader_module;
 }
 
-void recordCommandBuffer(uint32_t image_index, ApplicationData* app_data) {
+void recordCommandBuffer(
+    uint32_t         image_index,
+    uint32_t         current_frame,
+    ApplicationData* app_data
+) {
     VkCommandBufferBeginInfo begin_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
     };
 
-    if (vkBeginCommandBuffer(app_data->command_buffer, &begin_info) !=
-        VK_SUCCESS) {
+    if (vkBeginCommandBuffer(
+            app_data->command_buffer[current_frame], &begin_info
+        ) != VK_SUCCESS) {
         printf("Failed to begin recording command buffer\n");
         abort();
     }
@@ -332,18 +337,18 @@ void recordCommandBuffer(uint32_t image_index, ApplicationData* app_data) {
     VkRect2D scissor = {.offset = {0, 0}, .extent = app_data->swapchain_extent};
 
     vkCmdBeginRenderPass(
-        app_data->command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE
+        app_data->command_buffer[current_frame], &render_pass_info, VK_SUBPASS_CONTENTS_INLINE
     );
     vkCmdBindPipeline(
-        app_data->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+        app_data->command_buffer[current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS,
         app_data->pipeline
     );
-    vkCmdSetViewport(app_data->command_buffer, 0, 1, &viewport);
-    vkCmdSetScissor(app_data->command_buffer, 0, 1, &scissor);
-    vkCmdDraw(app_data->command_buffer, 3, 1, 0, 0);
-    vkCmdEndRenderPass(app_data->command_buffer);
+    vkCmdSetViewport(app_data->command_buffer[current_frame], 0, 1, &viewport);
+    vkCmdSetScissor(app_data->command_buffer[current_frame], 0, 1, &scissor);
+    vkCmdDraw(app_data->command_buffer[current_frame], 3, 1, 0, 0);
+    vkCmdEndRenderPass(app_data->command_buffer[current_frame]);
 
-    if (vkEndCommandBuffer(app_data->command_buffer) != VK_SUCCESS) {
+    if (vkEndCommandBuffer(app_data->command_buffer[current_frame]) != VK_SUCCESS) {
         printf("Failed to end command buffer\n");
         abort();
     }

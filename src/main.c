@@ -1,3 +1,4 @@
+#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <assert.h>
@@ -10,6 +11,7 @@
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
+#define MAX_FRAME_IN_FLIGHT 2
 
 #ifdef DEBUG
 
@@ -249,12 +251,23 @@ static void createRenderPass(void) {
         .pColorAttachments = &color_attachment_ref
     };
 
+    VkSubpassDependency subpass_dependency = {
+        .srcSubpass = VK_SUBPASS_EXTERNAL,
+        .dstSubpass = 0,
+        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .srcAccessMask = 0,
+        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    };
+
     VkRenderPassCreateInfo render_pass_info = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         .attachmentCount = 1,
         .pAttachments = &color_attachment,
         .subpassCount = 1,
         .pSubpasses = &subpass,
+        .dependencyCount = 1,
+        .pDependencies = &subpass_dependency
     };
 
     if (vkCreateRenderPass(
@@ -437,19 +450,57 @@ static void createCommandPool(void) {
     );
 }
 
-static void createCommandBuffer(void) {
+static void createCommandBuffers(void) {
+    app_data.command_buffer =
+        malloc(sizeof(VkCommandBuffer) * MAX_FRAME_IN_FLIGHT);
+
     VkCommandBufferAllocateInfo allocate_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = app_data.command_pool,
         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = 1
+        .commandBufferCount = MAX_FRAME_IN_FLIGHT
     };
 
     if (vkAllocateCommandBuffers(
-            app_data.vulkan_device, &allocate_info, &app_data.command_buffer
+            app_data.vulkan_device, &allocate_info, app_data.command_buffer
         ) != VK_SUCCESS) {
         printf("Cannot allocate command buffer");
         abort();
+    }
+}
+
+static void createSyncObjects(void) {
+    app_data.image_ready_write =
+        malloc(sizeof(VkSemaphore) * MAX_FRAME_IN_FLIGHT);
+    app_data.image_ready_read =
+        malloc(sizeof(VkSemaphore) * MAX_FRAME_IN_FLIGHT);
+    app_data.image_inflight = malloc(sizeof(VkFence) * MAX_FRAME_IN_FLIGHT);
+
+    VkSemaphoreCreateInfo semaphore_info = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
+    };
+
+    VkFenceCreateInfo fence_info = {
+        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .flags = VK_FENCE_CREATE_SIGNALED_BIT
+    };
+
+    for (uint32_t index = 0; index < MAX_FRAME_IN_FLIGHT; index++) {
+        if (vkCreateSemaphore(
+                app_data.vulkan_device, &semaphore_info, NULL,
+                app_data.image_ready_write + index
+            ) != VK_SUCCESS ||
+            vkCreateSemaphore(
+                app_data.vulkan_device, &semaphore_info, NULL,
+                app_data.image_ready_read + index
+            ) != VK_SUCCESS ||
+            vkCreateFence(
+                app_data.vulkan_device, &fence_info, NULL,
+                app_data.image_inflight + index
+            ) != VK_SUCCESS) {
+            printf("Failed to create sync objects\n");
+            abort();
+        }
     }
 }
 
@@ -510,17 +561,93 @@ static void initVulkan(void) {
     createGraphicPipeline();
     createFramebuffers();
     createCommandPool();
-    createCommandBuffer();
+    createCommandBuffers();
+    createSyncObjects();
+}
+
+static void drawFrame(uint32_t* current_frame) {
+    vkWaitForFences(
+        app_data.vulkan_device, 1, app_data.image_inflight + *current_frame,
+        VK_TRUE, UINT64_MAX
+    );
+    vkResetFences(
+        app_data.vulkan_device, 1, app_data.image_inflight + *current_frame
+    );
+
+    uint32_t image_index;
+    vkAcquireNextImageKHR(
+        app_data.vulkan_device, app_data.swapchain, UINT64_MAX,
+        app_data.image_ready_write[*current_frame], VK_NULL_HANDLE, &image_index
+    );
+    vkResetCommandBuffer(app_data.command_buffer[*current_frame], 0);
+    recordCommandBuffer(image_index, *current_frame, &app_data);
+
+    VkSemaphore wait_semaphores[] = {
+        app_data.image_ready_write[*current_frame]
+    };
+    VkPipelineStageFlags wait_stages[] = {
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    };
+    VkSemaphore signal_semaphores[] = {
+        app_data.image_ready_read[*current_frame]
+    };
+
+    VkSubmitInfo submit_info = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = wait_semaphores,
+        .pWaitDstStageMask = wait_stages,
+        .commandBufferCount = 1,
+        .pCommandBuffers = app_data.command_buffer + *current_frame,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = signal_semaphores
+    };
+
+    if (vkQueueSubmit(
+            app_data.graphic_queue, 1, &submit_info,
+            app_data.image_inflight[*current_frame]
+        ) != VK_SUCCESS) {
+        printf("Failed to submit draw command buffer\n");
+        abort();
+    }
+
+    VkPresentInfoKHR present_info = {
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = signal_semaphores,
+        .swapchainCount = 1,
+        .pSwapchains = (VkSwapchainKHR[]){app_data.swapchain},
+        .pImageIndices = &image_index
+    };
+
+    vkQueuePresentKHR(app_data.present_queue, &present_info);
+    *current_frame = (*current_frame + 1) % MAX_FRAME_IN_FLIGHT;
 }
 
 static void mainLoop(void) {
+    uint32_t current_frame = 0;
+
     while (!glfwWindowShouldClose(app_data.window_handle)) {
         glfwPollEvents();
-        break;
+        drawFrame(&current_frame);
     }
+
+    vkDeviceWaitIdle(app_data.vulkan_device);
 }
 
 static void cleanup(void) {
+    for (uint32_t index = 0; index < MAX_FRAME_IN_FLIGHT; index++) {
+        vkDestroySemaphore(
+            app_data.vulkan_device, app_data.image_ready_write[index], NULL
+        );
+        vkDestroySemaphore(
+            app_data.vulkan_device, app_data.image_ready_read[index], NULL
+        );
+        vkDestroyFence(
+            app_data.vulkan_device, app_data.image_inflight[index], NULL
+        );
+    }
+
     vkDestroyCommandPool(app_data.vulkan_device, app_data.command_pool, NULL);
 
     for (uint32_t index = 0; index < app_data.swapchain_image_size; index++) {
