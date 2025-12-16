@@ -473,7 +473,7 @@ static void createSyncObjects(void) {
     app_data.image_ready_write =
         malloc(sizeof(VkSemaphore) * MAX_FRAME_IN_FLIGHT);
     app_data.image_ready_read =
-        malloc(sizeof(VkSemaphore) * MAX_FRAME_IN_FLIGHT);
+        malloc(sizeof(VkSemaphore) * app_data.swapchain_image_size);
     app_data.image_inflight = malloc(sizeof(VkFence) * MAX_FRAME_IN_FLIGHT);
 
     VkSemaphoreCreateInfo semaphore_info = {
@@ -490,13 +490,19 @@ static void createSyncObjects(void) {
                 app_data.vulkan_device, &semaphore_info, NULL,
                 app_data.image_ready_write + index
             ) != VK_SUCCESS ||
-            vkCreateSemaphore(
-                app_data.vulkan_device, &semaphore_info, NULL,
-                app_data.image_ready_read + index
-            ) != VK_SUCCESS ||
             vkCreateFence(
                 app_data.vulkan_device, &fence_info, NULL,
                 app_data.image_inflight + index
+            ) != VK_SUCCESS) {
+            printf("Failed to create sync objects\n");
+            abort();
+        }
+    }
+
+    for (uint32_t index = 0; index < app_data.swapchain_image_size; index++) {
+        if (vkCreateSemaphore(
+                app_data.vulkan_device, &semaphore_info, NULL,
+                app_data.image_ready_read + index
             ) != VK_SUCCESS) {
             printf("Failed to create sync objects\n");
             abort();
@@ -588,9 +594,7 @@ static void drawFrame(uint32_t* current_frame) {
     VkPipelineStageFlags wait_stages[] = {
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
     };
-    VkSemaphore signal_semaphores[] = {
-        app_data.image_ready_read[*current_frame]
-    };
+    VkSemaphore  signal_semaphores[] = {app_data.image_ready_read[image_index]};
 
     VkSubmitInfo submit_info = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
