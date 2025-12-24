@@ -1,4 +1,3 @@
-#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <assert.h>
@@ -644,11 +643,14 @@ static void cleanup(void) {
         vkDestroySemaphore(
             app_data.vulkan_device, app_data.image_ready_write[index], NULL
         );
-        vkDestroySemaphore(
-            app_data.vulkan_device, app_data.image_ready_read[index], NULL
-        );
         vkDestroyFence(
             app_data.vulkan_device, app_data.image_inflight[index], NULL
+        );
+    }
+
+    for (uint32_t index = 0; index < app_data.swapchain_image_size; index++) {
+        vkDestroySemaphore(
+            app_data.vulkan_device, app_data.image_ready_read[index], NULL
         );
     }
 
