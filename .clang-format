@@ -1,13 +1,25 @@
 BasedOnStyle: Google
 
-IndentWidth: 4
-AlignAfterOpenBracket: BlockIndent
-AlignConsecutiveDeclarations:
-    Enabled: true
-    AcrossEmptyLines: true
-AlignOperands: AlignAfterOperator
-UseTab: Never
+IndentWidth: 8
+UseTab: ForContinuationAndIndentation
+ColumnLimit: 79
 
-BreakBeforeBraces: Attach
-AllowAllParametersOfDeclarationOnNextLine: false
-BinPackParameters: false
+AlignArrayOfStructures: Right
+AlignAfterOpenBracket: BlockIndent
+AlignEscapedNewlines: LeftWithLastLine
+AlignOperands: AlignAfterOperator
+
+BinPackParameters: AlwaysOnePerLine
+BinPackArguments: false
+# Waiting for Clang 22 stable for these and friends...
+# BreakAfterOpenBracketFunction: true
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeBraces: Linux
+BreakBeforeTernaryOperators: true
+BreakBinaryOperations: RespectPrecedence
+
+LineEnding: LF
+
+DerivePointerAlignment: false
+PointerAlignment: Right
+ReferenceAlignment: Pointer
