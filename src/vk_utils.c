@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -206,6 +207,7 @@ VkDeviceQueueCreateInfo *makeQueueCreateInfo(
 	*create_info_size = dd_size;
 	VkDeviceQueueCreateInfo *queue_create_infos =
 	    malloc(sizeof(VkDeviceQueueCreateInfo) * dd_size);
+	assert(queue_create_infos != NULL);
 
 	for (uint32_t dd_index = 0; dd_index < dd_size; dd_index++) {
 		queue_create_infos[dd_index] = (VkDeviceQueueCreateInfo){
@@ -231,6 +233,7 @@ SwapchainSupportDetail *querySwapchainSupport(
 {
 	SwapchainSupportDetail *details =
 	    malloc(sizeof(SwapchainSupportDetail));
+	assert(details != NULL);
 
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
 	    device, surface, &details->capabilities
@@ -243,6 +246,7 @@ SwapchainSupportDetail *querySwapchainSupport(
 	if (details->format_size != 0) {
 		details->formats =
 		    malloc(sizeof(VkSurfaceFormatKHR) * details->format_size);
+		assert(details->formats != NULL);
 		vkGetPhysicalDeviceSurfaceFormatsKHR(
 		    device, surface, &details->format_size, details->formats
 		);
@@ -256,6 +260,7 @@ SwapchainSupportDetail *querySwapchainSupport(
 		details->present_mode = malloc(
 		    sizeof(VkPresentModeKHR) * details->present_mode_size
 		);
+		assert(details->present_mode != NULL);
 		vkGetPhysicalDeviceSurfacePresentModesKHR(
 		    device,
 		    surface,

@@ -11,10 +11,8 @@
 #define MAX_FRAME_IN_FLIGHT 2
 
 #ifdef DEBUG
-
 #define VALIDATION_LAYERS_SIZE 1
 static const char *VALIDATION_LAYERS[] = {"VK_LAYER_KHRONOS_validation"};
-
 #endif
 
 const uint32_t REQUIRED_DEVICE_EXTENSION_SIZE = 1;
@@ -513,6 +511,7 @@ static void createCommandBuffers(void)
 {
 	app_data.command_buffer =
 	    malloc(sizeof(VkCommandBuffer) * MAX_FRAME_IN_FLIGHT);
+	assert(app_data.command_buffer != NULL);
 
 	VkCommandBufferAllocateInfo allocate_info = {
 	    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -538,6 +537,10 @@ static void createSyncObjects(void)
 	    malloc(sizeof(VkSemaphore) * app_data.swapchain_image_size);
 	app_data.image_inflight =
 	    malloc(sizeof(VkFence) * MAX_FRAME_IN_FLIGHT);
+
+	assert(app_data.image_ready_write != NULL);
+	assert(app_data.image_ready_read != NULL);
+	assert(app_data.image_inflight != NULL);
 
 	VkSemaphoreCreateInfo semaphore_info = {
 	    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
