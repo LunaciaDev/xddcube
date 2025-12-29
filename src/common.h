@@ -9,21 +9,21 @@
 extern const char *REQUIRED_DEVICE_EXTENSION[];
 extern const uint32_t REQUIRED_DEVICE_EXTENSION_SIZE;
 
-typedef struct QueueFamilyIndices {
+struct QueueFamilyIndices {
 	uint8_t has_value_bitmap;
 	uint32_t graphic_family;
 	uint32_t present_family;
-} QueueFamilyIndices;
+};
 
-typedef struct SwapchainSupportDetail {
+struct SwapchainSupportDetail {
 	VkSurfaceCapabilitiesKHR capabilities;
 	VkSurfaceFormatKHR *formats;
 	uint32_t format_size;
 	VkPresentModeKHR *present_mode;
 	uint32_t present_mode_size;
-} SwapchainSupportDetail;
+};
 
-typedef struct ApplicationData {
+struct AppState {
 	GLFWwindow *window_handle;
 	VkInstance vulkan_instance;
 
@@ -54,7 +54,7 @@ typedef struct ApplicationData {
 	uint32_t swapchain_image_size;
 	VkFormat swapchain_format;
 	VkExtent2D swapchain_extent;
-} ApplicationData;
+};
 
 bool hasReqValidationLayerSupport(
     const uint32_t validation_layers_size,
@@ -66,7 +66,7 @@ bool isDeviceSuitable(
     const VkSurfaceKHR surface
 );
 
-QueueFamilyIndices findQueueFamilies(
+struct QueueFamilyIndices findQueueFamilies(
     const VkPhysicalDevice device,
     const VkSurfaceKHR surface
 );
@@ -79,7 +79,7 @@ VkDeviceQueueCreateInfo *makeQueueCreateInfo(
 );
 void destroyQueueCreateInfo(VkDeviceQueueCreateInfo *queue_create_info);
 
-SwapchainSupportDetail *querySwapchainSupport(
+struct SwapchainSupportDetail *querySwapchainSupport(
     VkPhysicalDevice device,
     VkSurfaceKHR surface
 );
@@ -97,7 +97,9 @@ VkPresentModeKHR chooseSwapPresentMode(
     uint32_t present_mode_size
 );
 
-void destroySwapchainSupportDetail(SwapchainSupportDetail *support_detail);
+void destroySwapchainSupportDetail(
+    struct SwapchainSupportDetail *support_detail
+);
 
 VkShaderModule createShaderModule(
     char *code,
@@ -108,7 +110,7 @@ VkShaderModule createShaderModule(
 void recordCommandBuffer(
     uint32_t image_index,
     uint32_t current_frame,
-    ApplicationData *app_data
+    struct AppState *app_state
 );
 
 // ================

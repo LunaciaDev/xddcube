@@ -103,12 +103,12 @@ bool isDeviceSuitable(
     const VkSurfaceKHR surface
 )
 {
-	QueueFamilyIndices indices = findQueueFamilies(device, surface);
+	struct QueueFamilyIndices indices = findQueueFamilies(device, surface);
 	bool has_extension_support = checkDeviceExtensionSupport(device);
 
 	if (!has_extension_support) return false;
 
-	SwapchainSupportDetail *details =
+	struct SwapchainSupportDetail *details =
 	    querySwapchainSupport(device, surface);
 	bool adequate_swapchain_support =
 	    details->formats != NULL && details->present_mode != NULL;
@@ -118,12 +118,12 @@ bool isDeviceSuitable(
 	    && adequate_swapchain_support;
 }
 
-QueueFamilyIndices findQueueFamilies(
+struct QueueFamilyIndices findQueueFamilies(
     const VkPhysicalDevice device,
     const VkSurfaceKHR surface
 )
 {
-	QueueFamilyIndices indices = {
+	struct QueueFamilyIndices indices = {
 	    .has_value_bitmap = 0, .graphic_family = 0
 	};
 
@@ -226,13 +226,13 @@ void destroyQueueCreateInfo(VkDeviceQueueCreateInfo *queue_create_info)
 	free(queue_create_info);
 }
 
-SwapchainSupportDetail *querySwapchainSupport(
+struct SwapchainSupportDetail *querySwapchainSupport(
     VkPhysicalDevice device,
     VkSurfaceKHR surface
 )
 {
-	SwapchainSupportDetail *details =
-	    malloc(sizeof(SwapchainSupportDetail));
+	struct SwapchainSupportDetail *details =
+	    malloc(sizeof(struct SwapchainSupportDetail));
 	assert(details != NULL);
 
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
@@ -272,7 +272,9 @@ SwapchainSupportDetail *querySwapchainSupport(
 	return details;
 }
 
-void destroySwapchainSupportDetail(SwapchainSupportDetail *support_detail)
+void destroySwapchainSupportDetail(
+    struct SwapchainSupportDetail *support_detail
+)
 {
 	free(support_detail->formats);
 	free(support_detail->present_mode);
@@ -361,7 +363,7 @@ VkShaderModule createShaderModule(
 void recordCommandBuffer(
     uint32_t image_index,
     uint32_t current_frame,
-    ApplicationData *app_data
+    struct AppState *app_state
 )
 {
 	VkCommandBufferBeginInfo begin_info = {
@@ -369,7 +371,7 @@ void recordCommandBuffer(
 	};
 
 	if (vkBeginCommandBuffer(
-		app_data->command_buffer[current_frame], &begin_info
+		app_state->command_buffer[current_frame], &begin_info
 	    )
 	    != VK_SUCCESS) {
 		printf("Failed to begin recording command buffer\n");
@@ -381,10 +383,10 @@ void recordCommandBuffer(
 	};
 	VkRenderPassBeginInfo render_pass_info = {
 	    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-	    .renderPass = app_data->render_pass,
-	    .framebuffer = app_data->swapchain_frame_buffers[image_index],
+	    .renderPass = app_state->render_pass,
+	    .framebuffer = app_state->swapchain_frame_buffers[image_index],
 	    .renderArea =
-		{.offset = {0, 0}, .extent = app_data->swapchain_extent},
+		{.offset = {0, 0}, .extent = app_state->swapchain_extent},
 	    .clearValueCount = 1,
 	    .pClearValues = &clear_color
 	};
@@ -392,36 +394,36 @@ void recordCommandBuffer(
 	VkViewport viewport = {
 	    .x = 0.0,
 	    .y = 0.0,
-	    .width = app_data->swapchain_extent.width,
-	    .height = app_data->swapchain_extent.height,
+	    .width = app_state->swapchain_extent.width,
+	    .height = app_state->swapchain_extent.height,
 	    .minDepth = 0.0,
 	    .maxDepth = 1.0
 	};
 	VkRect2D scissor = {
 	    .offset = {0, 0},
-              .extent = app_data->swapchain_extent
+              .extent = app_state->swapchain_extent
 	};
 
 	vkCmdBeginRenderPass(
-	    app_data->command_buffer[current_frame],
+	    app_state->command_buffer[current_frame],
 	    &render_pass_info,
 	    VK_SUBPASS_CONTENTS_INLINE
 	);
 	vkCmdBindPipeline(
-	    app_data->command_buffer[current_frame],
+	    app_state->command_buffer[current_frame],
 	    VK_PIPELINE_BIND_POINT_GRAPHICS,
-	    app_data->pipeline
+	    app_state->pipeline
 	);
 	vkCmdSetViewport(
-	    app_data->command_buffer[current_frame], 0, 1, &viewport
+	    app_state->command_buffer[current_frame], 0, 1, &viewport
 	);
 	vkCmdSetScissor(
-	    app_data->command_buffer[current_frame], 0, 1, &scissor
+	    app_state->command_buffer[current_frame], 0, 1, &scissor
 	);
-	vkCmdDraw(app_data->command_buffer[current_frame], 3, 1, 0, 0);
-	vkCmdEndRenderPass(app_data->command_buffer[current_frame]);
+	vkCmdDraw(app_state->command_buffer[current_frame], 3, 1, 0, 0);
+	vkCmdEndRenderPass(app_state->command_buffer[current_frame]);
 
-	if (vkEndCommandBuffer(app_data->command_buffer[current_frame])
+	if (vkEndCommandBuffer(app_state->command_buffer[current_frame])
 	    != VK_SUCCESS) {
 		printf("Failed to end command buffer\n");
 		abort();

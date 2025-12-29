@@ -23,7 +23,7 @@ static const uint32_t DYNAMIC_STATES[] = {
     VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR
 };
 
-static ApplicationData app_data = {};
+static struct AppState app_state = {};
 
 // =================================
 
@@ -34,18 +34,18 @@ static void initWindow(void)
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-	app_data.window_handle = glfwCreateWindow(
+	app_state.window_handle = glfwCreateWindow(
 	    WINDOW_WIDTH, WINDOW_HEIGHT, "xddcube", NULL, NULL
 	);
 }
 
 static void selectPhysicalDevice(void)
 {
-	app_data.physical_device = VK_NULL_HANDLE;
+	app_state.physical_device = VK_NULL_HANDLE;
 
 	uint32_t device_count = 0;
 	vkEnumeratePhysicalDevices(
-	    app_data.vulkan_instance, &device_count, NULL
+	    app_state.vulkan_instance, &device_count, NULL
 	);
 
 	if (device_count == 0) {
@@ -55,20 +55,20 @@ static void selectPhysicalDevice(void)
 
 	VkPhysicalDevice devices[device_count];
 	vkEnumeratePhysicalDevices(
-	    app_data.vulkan_instance, &device_count, devices
+	    app_state.vulkan_instance, &device_count, devices
 	);
 
 	for (uint32_t device_index = 0; device_index < device_count;
 	     device_index++) {
 		if (isDeviceSuitable(
-			devices[device_index], app_data.surface
+			devices[device_index], app_state.surface
 		    )) {
-			app_data.physical_device = devices[device_index];
+			app_state.physical_device = devices[device_index];
 			break;
 		}
 	}
 
-	if (app_data.physical_device == VK_NULL_HANDLE) {
+	if (app_state.physical_device == VK_NULL_HANDLE) {
 		printf("Cannot find any suitable GPU.\n");
 		abort();
 	}
@@ -76,8 +76,8 @@ static void selectPhysicalDevice(void)
 
 static void createLogicalDevice(void)
 {
-	QueueFamilyIndices family_indices =
-	    findQueueFamilies(app_data.physical_device, app_data.surface);
+	struct QueueFamilyIndices family_indices =
+	    findQueueFamilies(app_state.physical_device, app_state.surface);
 
 	uint32_t create_info_size;
 	VkDeviceQueueCreateInfo *queue_create_info = makeQueueCreateInfo(
@@ -106,10 +106,10 @@ static void createLogicalDevice(void)
 	};
 
 	if (vkCreateDevice(
-		app_data.physical_device,
+		app_state.physical_device,
 		&create_info,
 		NULL,
-		&app_data.vulkan_device
+		&app_state.vulkan_device
 	    )
 	    != VK_SUCCESS) {
 		printf("Failed to create logical device.\n");
@@ -119,31 +119,33 @@ static void createLogicalDevice(void)
 	destroyQueueCreateInfo(queue_create_info);
 
 	vkGetDeviceQueue(
-	    app_data.vulkan_device,
+	    app_state.vulkan_device,
 	    family_indices.graphic_family,
 	    0,
-	    &app_data.graphic_queue
+	    &app_state.graphic_queue
 	);
 	vkGetDeviceQueue(
-	    app_data.vulkan_device,
+	    app_state.vulkan_device,
 	    family_indices.present_family,
 	    0,
-	    &app_data.present_queue
+	    &app_state.present_queue
 	);
 }
 
 static void createSwapChain(void)
 {
-	SwapchainSupportDetail *swapchain_support =
-	    querySwapchainSupport(app_data.physical_device, app_data.surface);
-	QueueFamilyIndices queue_family_indices =
-	    findQueueFamilies(app_data.physical_device, app_data.surface);
+	struct SwapchainSupportDetail *swapchain_support =
+	    querySwapchainSupport(
+		app_state.physical_device, app_state.surface
+	    );
+	struct QueueFamilyIndices queue_family_indices =
+	    findQueueFamilies(app_state.physical_device, app_state.surface);
 
 	VkSurfaceFormatKHR surface_format = chooseSwapSurfaceFormat(
 	    swapchain_support->formats, swapchain_support->format_size
 	);
 	VkExtent2D extent = chooseSwapExtent(
-	    &swapchain_support->capabilities, app_data.window_handle
+	    &swapchain_support->capabilities, app_state.window_handle
 	);
 	VkPresentModeKHR present_mode = chooseSwapPresentMode(
 	    swapchain_support->present_mode,
@@ -159,7 +161,7 @@ static void createSwapChain(void)
 
 	VkSwapchainCreateInfoKHR swapchain_create_info = {
 	    .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-	    .surface = app_data.surface,
+	    .surface = app_state.surface,
 	    .minImageCount = image_count,
 	    .imageFormat = surface_format.format,
 	    .imageColorSpace = surface_format.colorSpace,
@@ -187,50 +189,50 @@ static void createSwapChain(void)
 	}
 
 	if (vkCreateSwapchainKHR(
-		app_data.vulkan_device,
+		app_state.vulkan_device,
 		&swapchain_create_info,
 		NULL,
-		&app_data.swapchain
+		&app_state.swapchain
 	    )) {
 		printf("Failed to create swapchain\n");
 		abort();
 	}
 
 	vkGetSwapchainImagesKHR(
-	    app_data.vulkan_device,
-	    app_data.swapchain,
-	    &app_data.swapchain_image_size,
+	    app_state.vulkan_device,
+	    app_state.swapchain,
+	    &app_state.swapchain_image_size,
 	    NULL
 	);
-	app_data.swapchain_images =
-	    malloc(sizeof(VkImage) * app_data.swapchain_image_size);
-	assert(app_data.swapchain_images != NULL);
+	app_state.swapchain_images =
+	    malloc(sizeof(VkImage) * app_state.swapchain_image_size);
+	assert(app_state.swapchain_images != NULL);
 	vkGetSwapchainImagesKHR(
-	    app_data.vulkan_device,
-	    app_data.swapchain,
-	    &app_data.swapchain_image_size,
-	    app_data.swapchain_images
+	    app_state.vulkan_device,
+	    app_state.swapchain,
+	    &app_state.swapchain_image_size,
+	    app_state.swapchain_images
 	);
 
-	app_data.swapchain_format = surface_format.format;
-	app_data.swapchain_extent = extent;
+	app_state.swapchain_format = surface_format.format;
+	app_state.swapchain_extent = extent;
 
 	destroySwapchainSupportDetail(swapchain_support);
 }
 
 static void createImageView(void)
 {
-	app_data.swapchain_image_views =
-	    malloc(sizeof(VkImageView) * app_data.swapchain_image_size);
-	assert(app_data.swapchain_image_views != NULL);
+	app_state.swapchain_image_views =
+	    malloc(sizeof(VkImageView) * app_state.swapchain_image_size);
+	assert(app_state.swapchain_image_views != NULL);
 
-	for (uint32_t index = 0; index < app_data.swapchain_image_size;
+	for (uint32_t index = 0; index < app_state.swapchain_image_size;
 	     index++) {
 		VkImageViewCreateInfo view_create_info = {
 		    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-		    .image = app_data.swapchain_images[index],
+		    .image = app_state.swapchain_images[index],
 		    .viewType = VK_IMAGE_VIEW_TYPE_2D,
-		    .format = app_data.swapchain_format,
+		    .format = app_state.swapchain_format,
 		    .components =
 			{VK_COMPONENT_SWIZZLE_IDENTITY,
 				     VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -245,10 +247,10 @@ static void createImageView(void)
 		};
 
 		if (vkCreateImageView(
-			app_data.vulkan_device,
+			app_state.vulkan_device,
 			&view_create_info,
 			NULL,
-			&app_data.swapchain_image_views[index]
+			&app_state.swapchain_image_views[index]
 		    )
 		    != VK_SUCCESS) {
 			printf("Failed to create image view\n");
@@ -260,7 +262,7 @@ static void createImageView(void)
 static void createRenderPass(void)
 {
 	VkAttachmentDescription color_attachment = {
-	    .format = app_data.swapchain_format,
+	    .format = app_state.swapchain_format,
 	    .samples = VK_SAMPLE_COUNT_1_BIT,
 	    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 	    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -300,10 +302,10 @@ static void createRenderPass(void)
 	};
 
 	if (vkCreateRenderPass(
-		app_data.vulkan_device,
+		app_state.vulkan_device,
 		&render_pass_info,
 		NULL,
-		&app_data.render_pass
+		&app_state.render_pass
 	    )
 	    != VK_SUCCESS) {
 		printf("Cannot create render pass");
@@ -319,10 +321,10 @@ static void createGraphicPipeline(void)
 	char *vert_shader = readFile("shaders/vert.spv", &vert_shader_size);
 
 	VkShaderModule frag_shader_module = createShaderModule(
-	    frag_shader, frag_shader_size, app_data.vulkan_device
+	    frag_shader, frag_shader_size, app_state.vulkan_device
 	);
 	VkShaderModule vert_shader_module = createShaderModule(
-	    vert_shader, vert_shader_size, app_data.vulkan_device
+	    vert_shader, vert_shader_size, app_state.vulkan_device
 	);
 
 	VkPipelineShaderStageCreateInfo vert_stage_info = {
@@ -406,10 +408,10 @@ static void createGraphicPipeline(void)
 	};
 
 	if (vkCreatePipelineLayout(
-		app_data.vulkan_device,
+		app_state.vulkan_device,
 		&pipeline_layout_info,
 		NULL,
-		&app_data.pipeline_layout
+		&app_state.pipeline_layout
 	    )
 	    != VK_SUCCESS) {
 		printf("Cannot create pipeline layout\n");
@@ -427,18 +429,18 @@ static void createGraphicPipeline(void)
 	    .pMultisampleState = &multisample_info,
 	    .pColorBlendState = &color_blending,
 	    .pDynamicState = &dynamic_state_info,
-	    .layout = app_data.pipeline_layout,
-	    .renderPass = app_data.render_pass,
+	    .layout = app_state.pipeline_layout,
+	    .renderPass = app_state.render_pass,
 	    .subpass = 0
 	};
 
 	if (vkCreateGraphicsPipelines(
-		app_data.vulkan_device,
+		app_state.vulkan_device,
 		VK_NULL_HANDLE,
 		1,
 		&graphic_pipeline_info,
 		NULL,
-		&app_data.pipeline
+		&app_state.pipeline
 	    )
 	    != VK_SUCCESS) {
 		printf("Failed to create graphic pipeline\n");
@@ -446,10 +448,10 @@ static void createGraphicPipeline(void)
 	}
 
 	vkDestroyShaderModule(
-	    app_data.vulkan_device, frag_shader_module, NULL
+	    app_state.vulkan_device, frag_shader_module, NULL
 	);
 	vkDestroyShaderModule(
-	    app_data.vulkan_device, vert_shader_module, NULL
+	    app_state.vulkan_device, vert_shader_module, NULL
 	);
 
 	free(frag_shader);
@@ -458,31 +460,31 @@ static void createGraphicPipeline(void)
 
 static void createFramebuffers(void)
 {
-	app_data.swapchain_frame_buffers =
-	    malloc(sizeof(VkFramebuffer) * app_data.swapchain_image_size);
-	assert(app_data.swapchain_frame_buffers != NULL);
+	app_state.swapchain_frame_buffers =
+	    malloc(sizeof(VkFramebuffer) * app_state.swapchain_image_size);
+	assert(app_state.swapchain_frame_buffers != NULL);
 
-	for (uint32_t index = 0; index < app_data.swapchain_image_size;
+	for (uint32_t index = 0; index < app_state.swapchain_image_size;
 	     index++) {
 		VkImageView attachment[] = {
-		    app_data.swapchain_image_views[index]
+		    app_state.swapchain_image_views[index]
 		};
 
 		VkFramebufferCreateInfo frame_create_info = {
 		    .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-		    .renderPass = app_data.render_pass,
+		    .renderPass = app_state.render_pass,
 		    .attachmentCount = 1,
 		    .pAttachments = attachment,
-		    .width = app_data.swapchain_extent.width,
-		    .height = app_data.swapchain_extent.height,
+		    .width = app_state.swapchain_extent.width,
+		    .height = app_state.swapchain_extent.height,
 		    .layers = 1
 		};
 
 		if (vkCreateFramebuffer(
-			app_data.vulkan_device,
+			app_state.vulkan_device,
 			&frame_create_info,
 			NULL,
-			app_data.swapchain_frame_buffers + index
+			app_state.swapchain_frame_buffers + index
 		    )
 		    != VK_SUCCESS) {
 			printf("Failed to create framebuffer");
@@ -493,8 +495,8 @@ static void createFramebuffers(void)
 
 static void createCommandPool(void)
 {
-	QueueFamilyIndices queue_family_indices =
-	    findQueueFamilies(app_data.physical_device, app_data.surface);
+	struct QueueFamilyIndices queue_family_indices =
+	    findQueueFamilies(app_state.physical_device, app_state.surface);
 
 	VkCommandPoolCreateInfo pool_info = {
 	    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -503,25 +505,27 @@ static void createCommandPool(void)
 	};
 
 	vkCreateCommandPool(
-	    app_data.vulkan_device, &pool_info, NULL, &app_data.command_pool
+	    app_state.vulkan_device, &pool_info, NULL, &app_state.command_pool
 	);
 }
 
 static void createCommandBuffers(void)
 {
-	app_data.command_buffer =
+	app_state.command_buffer =
 	    malloc(sizeof(VkCommandBuffer) * MAX_FRAME_IN_FLIGHT);
-	assert(app_data.command_buffer != NULL);
+	assert(app_state.command_buffer != NULL);
 
 	VkCommandBufferAllocateInfo allocate_info = {
 	    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-	    .commandPool = app_data.command_pool,
+	    .commandPool = app_state.command_pool,
 	    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
 	    .commandBufferCount = MAX_FRAME_IN_FLIGHT
 	};
 
 	if (vkAllocateCommandBuffers(
-		app_data.vulkan_device, &allocate_info, app_data.command_buffer
+		app_state.vulkan_device,
+		&allocate_info,
+		app_state.command_buffer
 	    )
 	    != VK_SUCCESS) {
 		printf("Cannot allocate command buffer");
@@ -531,16 +535,16 @@ static void createCommandBuffers(void)
 
 static void createSyncObjects(void)
 {
-	app_data.image_ready_write =
+	app_state.image_ready_write =
 	    malloc(sizeof(VkSemaphore) * MAX_FRAME_IN_FLIGHT);
-	app_data.image_ready_read =
-	    malloc(sizeof(VkSemaphore) * app_data.swapchain_image_size);
-	app_data.image_inflight =
+	app_state.image_ready_read =
+	    malloc(sizeof(VkSemaphore) * app_state.swapchain_image_size);
+	app_state.image_inflight =
 	    malloc(sizeof(VkFence) * MAX_FRAME_IN_FLIGHT);
 
-	assert(app_data.image_ready_write != NULL);
-	assert(app_data.image_ready_read != NULL);
-	assert(app_data.image_inflight != NULL);
+	assert(app_state.image_ready_write != NULL);
+	assert(app_state.image_ready_read != NULL);
+	assert(app_state.image_inflight != NULL);
 
 	VkSemaphoreCreateInfo semaphore_info = {
 	    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
@@ -553,29 +557,29 @@ static void createSyncObjects(void)
 
 	for (uint32_t index = 0; index < MAX_FRAME_IN_FLIGHT; index++) {
 		if (vkCreateSemaphore(
-			app_data.vulkan_device,
+			app_state.vulkan_device,
 			&semaphore_info,
 			NULL,
-			app_data.image_ready_write + index
+			app_state.image_ready_write + index
 		    ) != VK_SUCCESS
 		    || vkCreateFence(
-			   app_data.vulkan_device,
+			   app_state.vulkan_device,
 			   &fence_info,
 			   NULL,
-			   app_data.image_inflight + index
+			   app_state.image_inflight + index
 		       ) != VK_SUCCESS) {
 			printf("Failed to create sync objects\n");
 			abort();
 		}
 	}
 
-	for (uint32_t index = 0; index < app_data.swapchain_image_size;
+	for (uint32_t index = 0; index < app_state.swapchain_image_size;
 	     index++) {
 		if (vkCreateSemaphore(
-			app_data.vulkan_device,
+			app_state.vulkan_device,
 			&semaphore_info,
 			NULL,
-			app_data.image_ready_read + index
+			app_state.image_ready_read + index
 		    )
 		    != VK_SUCCESS) {
 			printf("Failed to create sync objects\n");
@@ -621,16 +625,16 @@ static void initVulkan(void)
 #endif
 	};
 
-	if (vkCreateInstance(&create_info, NULL, &app_data.vulkan_instance)
+	if (vkCreateInstance(&create_info, NULL, &app_state.vulkan_instance)
 	    != VK_SUCCESS) {
 		abort();
 	}
 
 	if (glfwCreateWindowSurface(
-		app_data.vulkan_instance,
-		app_data.window_handle,
+		app_state.vulkan_instance,
+		app_state.window_handle,
 		NULL,
-		&app_data.surface
+		&app_state.surface
 	    )
 	    != VK_SUCCESS) {
 		printf("Failed to create window surface\n");
@@ -652,36 +656,38 @@ static void initVulkan(void)
 static void drawFrame(uint32_t *current_frame)
 {
 	vkWaitForFences(
-	    app_data.vulkan_device,
+	    app_state.vulkan_device,
 	    1,
-	    app_data.image_inflight + *current_frame,
+	    app_state.image_inflight + *current_frame,
 	    VK_TRUE,
 	    UINT64_MAX
 	);
 	vkResetFences(
-	    app_data.vulkan_device, 1, app_data.image_inflight + *current_frame
+	    app_state.vulkan_device,
+	    1,
+	    app_state.image_inflight + *current_frame
 	);
 
 	uint32_t image_index;
 	vkAcquireNextImageKHR(
-	    app_data.vulkan_device,
-	    app_data.swapchain,
+	    app_state.vulkan_device,
+	    app_state.swapchain,
 	    UINT64_MAX,
-	    app_data.image_ready_write[*current_frame],
+	    app_state.image_ready_write[*current_frame],
 	    VK_NULL_HANDLE,
 	    &image_index
 	);
-	vkResetCommandBuffer(app_data.command_buffer[*current_frame], 0);
-	recordCommandBuffer(image_index, *current_frame, &app_data);
+	vkResetCommandBuffer(app_state.command_buffer[*current_frame], 0);
+	recordCommandBuffer(image_index, *current_frame, &app_state);
 
 	VkSemaphore wait_semaphores[] = {
-	    app_data.image_ready_write[*current_frame]
+	    app_state.image_ready_write[*current_frame]
 	};
 	VkPipelineStageFlags wait_stages[] = {
 	    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
 	};
 	VkSemaphore signal_semaphores[] = {
-	    app_data.image_ready_read[image_index]
+	    app_state.image_ready_read[image_index]
 	};
 
 	VkSubmitInfo submit_info = {
@@ -690,16 +696,16 @@ static void drawFrame(uint32_t *current_frame)
 	    .pWaitSemaphores = wait_semaphores,
 	    .pWaitDstStageMask = wait_stages,
 	    .commandBufferCount = 1,
-	    .pCommandBuffers = app_data.command_buffer + *current_frame,
+	    .pCommandBuffers = app_state.command_buffer + *current_frame,
 	    .signalSemaphoreCount = 1,
 	    .pSignalSemaphores = signal_semaphores
 	};
 
 	if (vkQueueSubmit(
-		app_data.graphic_queue,
+		app_state.graphic_queue,
 		1,
 		&submit_info,
-		app_data.image_inflight[*current_frame]
+		app_state.image_inflight[*current_frame]
 	    )
 	    != VK_SUCCESS) {
 		printf("Failed to submit draw command buffer\n");
@@ -711,11 +717,11 @@ static void drawFrame(uint32_t *current_frame)
 	    .waitSemaphoreCount = 1,
 	    .pWaitSemaphores = signal_semaphores,
 	    .swapchainCount = 1,
-	    .pSwapchains = (VkSwapchainKHR[]){app_data.swapchain},
+	    .pSwapchains = (VkSwapchainKHR[]){app_state.swapchain},
 	    .pImageIndices = &image_index
 	};
 
-	vkQueuePresentKHR(app_data.present_queue, &present_info);
+	vkQueuePresentKHR(app_state.present_queue, &present_info);
 	*current_frame = (*current_frame + 1) % MAX_FRAME_IN_FLIGHT;
 }
 
@@ -723,76 +729,78 @@ static void mainLoop(void)
 {
 	uint32_t current_frame = 0;
 
-	while (!glfwWindowShouldClose(app_data.window_handle)) {
+	while (!glfwWindowShouldClose(app_state.window_handle)) {
 		glfwPollEvents();
 		drawFrame(&current_frame);
 	}
 
-	vkDeviceWaitIdle(app_data.vulkan_device);
+	vkDeviceWaitIdle(app_state.vulkan_device);
 }
 
 static void cleanup(void)
 {
 	for (uint32_t index = 0; index < MAX_FRAME_IN_FLIGHT; index++) {
 		vkDestroySemaphore(
-		    app_data.vulkan_device,
-		    app_data.image_ready_write[index],
+		    app_state.vulkan_device,
+		    app_state.image_ready_write[index],
 		    NULL
 		);
 		vkDestroyFence(
-		    app_data.vulkan_device,
-		    app_data.image_inflight[index],
+		    app_state.vulkan_device,
+		    app_state.image_inflight[index],
 		    NULL
 		);
 	}
 
-	for (uint32_t index = 0; index < app_data.swapchain_image_size;
+	for (uint32_t index = 0; index < app_state.swapchain_image_size;
 	     index++) {
 		vkDestroySemaphore(
-		    app_data.vulkan_device,
-		    app_data.image_ready_read[index],
+		    app_state.vulkan_device,
+		    app_state.image_ready_read[index],
 		    NULL
 		);
 	}
 
 	vkDestroyCommandPool(
-	    app_data.vulkan_device, app_data.command_pool, NULL
+	    app_state.vulkan_device, app_state.command_pool, NULL
 	);
 
-	for (uint32_t index = 0; index < app_data.swapchain_image_size;
+	for (uint32_t index = 0; index < app_state.swapchain_image_size;
 	     index++) {
 		vkDestroyFramebuffer(
-		    app_data.vulkan_device,
-		    app_data.swapchain_frame_buffers[index],
+		    app_state.vulkan_device,
+		    app_state.swapchain_frame_buffers[index],
 		    NULL
 		);
 	}
 
-	vkDestroyPipeline(app_data.vulkan_device, app_data.pipeline, NULL);
+	vkDestroyPipeline(app_state.vulkan_device, app_state.pipeline, NULL);
 	vkDestroyPipelineLayout(
-	    app_data.vulkan_device, app_data.pipeline_layout, NULL
+	    app_state.vulkan_device, app_state.pipeline_layout, NULL
 	);
 	vkDestroyRenderPass(
-	    app_data.vulkan_device, app_data.render_pass, NULL
+	    app_state.vulkan_device, app_state.render_pass, NULL
 	);
 
-	for (uint32_t index = 0; index < app_data.swapchain_image_size;
+	for (uint32_t index = 0; index < app_state.swapchain_image_size;
 	     index++) {
 		vkDestroyImageView(
-		    app_data.vulkan_device,
-		    app_data.swapchain_image_views[index],
+		    app_state.vulkan_device,
+		    app_state.swapchain_image_views[index],
 		    NULL
 		);
 	}
 
 	vkDestroySwapchainKHR(
-	    app_data.vulkan_device, app_data.swapchain, NULL
+	    app_state.vulkan_device, app_state.swapchain, NULL
 	);
-	vkDestroyDevice(app_data.vulkan_device, NULL);
-	vkDestroySurfaceKHR(app_data.vulkan_instance, app_data.surface, NULL);
-	vkDestroyInstance(app_data.vulkan_instance, NULL);
+	vkDestroyDevice(app_state.vulkan_device, NULL);
+	vkDestroySurfaceKHR(
+	    app_state.vulkan_instance, app_state.surface, NULL
+	);
+	vkDestroyInstance(app_state.vulkan_instance, NULL);
 
-	glfwDestroyWindow(app_data.window_handle);
+	glfwDestroyWindow(app_state.window_handle);
 	glfwTerminate();
 }
 
