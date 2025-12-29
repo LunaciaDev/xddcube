@@ -31,7 +31,8 @@ prep:
 	mkdir -p $(DEBUG_DIR) $(RELEASE_DIR) $(DEBUG_DIR)/shaders $(RELEASE_DIR)/shaders
 
 debug: CFLAGS += -DDEBUG -g
-debug: $(DEBUG_SHADER_OBJS) $(DEBUG_OBJS)
+debug: DEPS = $(DEBUG_DEPS)
+debug: prep $(DEBUG_SHADER_OBJS) $(DEBUG_OBJS)
 	$(CC) $(CFLAGS) $(DEBUG_OBJS) -o $(DEBUG_DIR)/$(EXECUTABLE) $(LDFLAGS)
 
 $(DEBUG_DIR)/%.o: $(SRC_DIR)/%.c
@@ -41,7 +42,8 @@ $(DEBUG_DIR)/shaders/%.spv: shaders/shader.%
 	glslang -V $< -o $@
 
 release: CFLAGS += -O2
-release: $(RELEASE_SHADER_OBJS) $(RELEASE_OBJS)
+release: DEPS = $(RELEASE_DEPS)
+release: prep $(RELEASE_SHADER_OBJS) $(RELEASE_OBJS)
 	$(CC) $(CFLAGS) $(RELEASE_OBJS) -o $(RELEASE_DIR)/$(EXECUTABLE) $(LDFLAGS)
 
 $(RELEASE_DIR)/%.o: $(SRC_DIR)/%.c
