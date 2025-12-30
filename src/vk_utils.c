@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -414,13 +415,26 @@ void recordCommandBuffer(
 	    VK_PIPELINE_BIND_POINT_GRAPHICS,
 	    app_state->pipeline
 	);
+
+	VkBuffer vertex_buffer[] = {app_state->vertex_buffer};
+	VkDeviceSize offset[] = {0};
+	vkCmdBindVertexBuffers(
+	    app_state->command_buffer[current_frame],
+	    0,
+	    1,
+	    vertex_buffer,
+	    offset
+	);
+
 	vkCmdSetViewport(
 	    app_state->command_buffer[current_frame], 0, 1, &viewport
 	);
 	vkCmdSetScissor(
 	    app_state->command_buffer[current_frame], 0, 1, &scissor
 	);
-	vkCmdDraw(app_state->command_buffer[current_frame], 3, 1, 0, 0);
+	vkCmdDraw(
+	    app_state->command_buffer[current_frame], VERTICES_LEN, 1, 0, 0
+	);
 	vkCmdEndRenderPass(app_state->command_buffer[current_frame]);
 
 	if (vkEndCommandBuffer(app_state->command_buffer[current_frame])
@@ -428,4 +442,143 @@ void recordCommandBuffer(
 		printf("Failed to end command buffer\n");
 		abort();
 	}
+}
+
+VkVertexInputBindingDescription getVertexBindingDescription(void)
+{
+	return (VkVertexInputBindingDescription){
+	    .binding = 0,
+	    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+	    .stride = sizeof(struct Vertex)
+	};
+}
+
+/**
+ * The pointer returned by this function must be freed by the caller.
+ */
+VkVertexInputAttributeDescription *getAttributeDescription(void)
+{
+	VkVertexInputAttributeDescription *attribute_description =
+	    malloc(sizeof(VkVertexInputAttributeDescription) * 2);
+
+	attribute_description[0] = (VkVertexInputAttributeDescription){
+	    .binding = 0,
+	    .location = 0,
+	    .format = VK_FORMAT_R32G32_SFLOAT,
+	    .offset = offsetof(struct Vertex, pos)
+	};
+
+	attribute_description[1] = (VkVertexInputAttributeDescription){
+	    .binding = 0,
+	    .location = 1,
+	    .format = VK_FORMAT_R32G32B32_SFLOAT,
+	    .offset = offsetof(struct Vertex, color)
+	};
+
+	return attribute_description;
+}
+
+static uint32_t findMemoryType(
+    VkPhysicalDevice device,
+    uint32_t type_filter,
+    VkMemoryPropertyFlags properties
+)
+{
+	VkPhysicalDeviceMemoryProperties mem_properties;
+	vkGetPhysicalDeviceMemoryProperties(device, &mem_properties);
+
+	for (uint32_t i = 0; i < mem_properties.memoryTypeCount; i++) {
+		if ((type_filter & (1 << i))
+		    && (mem_properties.memoryTypes[i].propertyFlags
+			& properties)) {
+			return i;
+		}
+	}
+
+	printf("Failed to find suitable memory types\n");
+	abort();
+}
+
+void createBuffer(
+    VkDevice device,
+    VkPhysicalDevice physical_device,
+    VkDeviceSize size,
+    VkBufferUsageFlags usage,
+    VkMemoryPropertyFlags properties,
+    VkBuffer *buffer,
+    VkDeviceMemory *buffer_memory
+)
+{
+	VkBufferCreateInfo buffer_info = {
+	    .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+	    .size = size,
+	    .usage = usage,
+	    .sharingMode = VK_SHARING_MODE_EXCLUSIVE
+	};
+
+	if (vkCreateBuffer(device, &buffer_info, NULL, buffer) != VK_SUCCESS) {
+		printf("Failed to create vertex buffer\n");
+		abort();
+	}
+
+	VkMemoryRequirements mem_requirement;
+	vkGetBufferMemoryRequirements(device, *buffer, &mem_requirement);
+
+	VkMemoryAllocateInfo allocate_info = {
+	    .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+	    .allocationSize = mem_requirement.size,
+	    .memoryTypeIndex = findMemoryType(
+		physical_device, mem_requirement.memoryTypeBits, properties
+	    )
+	};
+
+	if (vkAllocateMemory(device, &allocate_info, NULL, buffer_memory)
+	    != VK_SUCCESS) {
+		printf("Failed to allocate vertex buffer memory\n");
+		abort();
+	}
+
+	vkBindBufferMemory(device, *buffer, *buffer_memory, 0);
+}
+
+void copyBuffer(
+    VkDevice device,
+    VkCommandPool command_pool,
+    VkQueue queue,
+    VkBuffer src,
+    VkBuffer dst,
+    VkDeviceSize size
+)
+{
+	VkCommandBufferAllocateInfo alloc_info = {
+	    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+	    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+	    .commandPool = command_pool,
+	    .commandBufferCount = 1
+	};
+
+	VkCommandBuffer command_buffer;
+	vkAllocateCommandBuffers(device, &alloc_info, &command_buffer);
+
+	VkCommandBufferBeginInfo begin_info = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+		.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+	};
+
+	vkBeginCommandBuffer(command_buffer, &begin_info);
+	VkBufferCopy copy_region = {
+		.size = size
+	};
+	vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
+	vkEndCommandBuffer(command_buffer);
+
+	VkSubmitInfo submit_info = {
+		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+		.commandBufferCount = 1,
+		.pCommandBuffers = &command_buffer
+	};
+	vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+	vkQueueWaitIdle(queue);
+
+	vkFreeCommandBuffers(device, command_pool, 1, &command_buffer);
 }

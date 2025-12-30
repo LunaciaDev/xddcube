@@ -1,6 +1,8 @@
 #ifndef XDD__COMMON_H__
 #define XDD__COMMON_H__
 
+#include "cglm/types.h"
+
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <stdbool.h>
@@ -8,6 +10,12 @@
 
 extern const char *REQUIRED_DEVICE_EXTENSION[];
 extern const uint32_t REQUIRED_DEVICE_EXTENSION_SIZE;
+extern const uint32_t VERTICES_LEN;
+
+struct Vertex {
+	vec2 pos;
+	vec3 color;
+};
 
 struct QueueFamilyIndices {
 	uint8_t has_value_bitmap;
@@ -39,6 +47,9 @@ struct AppState {
 
 	VkCommandPool command_pool;
 	VkCommandBuffer *command_buffer;
+
+	VkBuffer vertex_buffer;
+	VkDeviceMemory vertex_buffer_mem;
 
 	VkRenderPass render_pass;
 	VkPipelineLayout pipeline_layout;
@@ -113,6 +124,31 @@ void recordCommandBuffer(
     uint32_t current_frame,
     struct AppState *app_state
 );
+
+void createBuffer(
+    VkDevice device,
+    VkPhysicalDevice physical_device,
+    VkDeviceSize size,
+    VkBufferUsageFlags usage,
+    VkMemoryPropertyFlags properties,
+    VkBuffer *buffer,
+    VkDeviceMemory *buffer_memory
+);
+
+void copyBuffer(
+    VkDevice device,
+    VkCommandPool command_pool,
+    VkQueue queue,
+    VkBuffer src,
+    VkBuffer dst,
+    VkDeviceSize size
+);
+
+// ================
+// Vertex Helpers
+
+VkVertexInputBindingDescription getVertexBindingDescription(void);
+VkVertexInputAttributeDescription *getAttributeDescription(void);
 
 // ================
 

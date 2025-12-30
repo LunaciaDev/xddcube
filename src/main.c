@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "common.h"
 
@@ -22,6 +23,13 @@ const char *REQUIRED_DEVICE_EXTENSION[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 static const uint32_t DYNAMIC_STATES[] = {
     VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR
 };
+
+static const struct Vertex VERTICES[] = {
+    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    { {0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+};
+const uint32_t VERTICES_LEN = sizeof(VERTICES) / sizeof(VERTICES[0]);
 
 static struct AppState app_state = {.framebuffer_resized = false};
 
@@ -367,10 +375,17 @@ static void createGraphicPipeline(void)
 	    .pDynamicStates = DYNAMIC_STATES
 	};
 
+	const VkVertexInputBindingDescription binding_desc =
+	    getVertexBindingDescription();
+	VkVertexInputAttributeDescription *attr_desc =
+	    getAttributeDescription();
+
 	VkPipelineVertexInputStateCreateInfo vertex_input_info = {
 	    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-	    .vertexBindingDescriptionCount = 0,
-	    .vertexAttributeDescriptionCount = 0
+	    .vertexBindingDescriptionCount = 1,
+	    .vertexAttributeDescriptionCount = 2,
+	    .pVertexBindingDescriptions = &binding_desc,
+	    .pVertexAttributeDescriptions = attr_desc
 	};
 
 	VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {
@@ -472,6 +487,7 @@ static void createGraphicPipeline(void)
 
 	free(frag_shader);
 	free(vert_shader);
+	free(attr_desc);
 }
 
 static void createFramebuffers(void)
@@ -523,6 +539,60 @@ static void createCommandPool(void)
 	vkCreateCommandPool(
 	    app_state.vulkan_device, &pool_info, NULL, &app_state.command_pool
 	);
+}
+
+static void createVertexBuffer(void)
+{
+	VkDeviceSize buffer_size = sizeof(VERTICES);
+
+	VkBuffer staging_buffer;
+	VkDeviceMemory staging_buffer_mem;
+
+	createBuffer(
+	    app_state.vulkan_device,
+	    app_state.physical_device,
+	    buffer_size,
+	    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+	    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+		| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+	    &staging_buffer,
+	    &staging_buffer_mem
+	);
+
+	void *vert_buffer_data;
+	vkMapMemory(
+	    app_state.vulkan_device,
+	    staging_buffer_mem,
+	    0,
+	    buffer_size,
+	    0,
+	    &vert_buffer_data
+	);
+	memcpy(vert_buffer_data, VERTICES, buffer_size);
+	vkUnmapMemory(app_state.vulkan_device, staging_buffer_mem);
+
+	createBuffer(
+	    app_state.vulkan_device,
+	    app_state.physical_device,
+	    buffer_size,
+	    VK_BUFFER_USAGE_TRANSFER_DST_BIT
+		| VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+	    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+	    &app_state.vertex_buffer,
+	    &app_state.vertex_buffer_mem
+	);
+
+	copyBuffer(
+	    app_state.vulkan_device,
+	    app_state.command_pool,
+	    app_state.graphic_queue,
+	    staging_buffer,
+	    app_state.vertex_buffer,
+	    buffer_size
+	);
+
+	vkDestroyBuffer(app_state.vulkan_device, staging_buffer, NULL);
+	vkFreeMemory(app_state.vulkan_device, staging_buffer_mem, NULL);
 }
 
 static void createCommandBuffers(void)
@@ -665,6 +735,7 @@ static void initVulkan(void)
 	createGraphicPipeline();
 	createFramebuffers();
 	createCommandPool();
+	createVertexBuffer();
 	createCommandBuffers();
 	createSyncObjects();
 }
@@ -838,6 +909,13 @@ static void mainLoop(void)
 static void cleanup(void)
 {
 	cleanupSwapchain();
+
+	vkDestroyBuffer(
+	    app_state.vulkan_device, app_state.vertex_buffer, NULL
+	);
+	vkFreeMemory(
+	    app_state.vulkan_device, app_state.vertex_buffer_mem, NULL
+	);
 
 	vkDestroyPipeline(app_state.vulkan_device, app_state.pipeline, NULL);
 	vkDestroyPipelineLayout(
