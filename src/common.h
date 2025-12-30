@@ -47,6 +47,7 @@ struct AppState {
 	VkSemaphore *image_ready_write;
 	VkSemaphore *image_ready_read;
 	VkFence *image_inflight;
+	bool framebuffer_resized;
 
 	VkImage *swapchain_images;
 	VkImageView *swapchain_image_views;

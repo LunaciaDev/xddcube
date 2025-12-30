@@ -23,9 +23,22 @@ static const uint32_t DYNAMIC_STATES[] = {
     VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR
 };
 
-static struct AppState app_state = {};
+static struct AppState app_state = {.framebuffer_resized = false};
 
 // =================================
+
+static void framebufferResizeCallback(
+    GLFWwindow *window_handle,
+    int width,
+    int height
+)
+{
+	(void)window_handle;
+	(void)width;
+	(void)height;
+
+	app_state.framebuffer_resized = true;
+}
 
 static void initWindow(void)
 {
@@ -36,6 +49,9 @@ static void initWindow(void)
 
 	app_state.window_handle = glfwCreateWindow(
 	    WINDOW_WIDTH, WINDOW_HEIGHT, "xddcube", NULL, NULL
+	);
+	glfwSetFramebufferSizeCallback(
+	    app_state.window_handle, framebufferResizeCallback
 	);
 }
 
@@ -88,7 +104,7 @@ static void createLogicalDevice(void)
 	    2
 	);
 
-	VkPhysicalDeviceFeatures device_feature = {};
+	VkPhysicalDeviceFeatures device_feature = {0};
 
 	VkDeviceCreateInfo create_info = {
 	    .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -132,7 +148,7 @@ static void createLogicalDevice(void)
 	);
 }
 
-static void createSwapChain(void)
+static void createSwapchain(void)
 {
 	struct SwapchainSupportDetail *swapchain_support =
 	    querySwapchainSupport(
@@ -643,7 +659,7 @@ static void initVulkan(void)
 
 	selectPhysicalDevice();
 	createLogicalDevice();
-	createSwapChain();
+	createSwapchain();
 	createImageView();
 	createRenderPass();
 	createGraphicPipeline();
@@ -653,8 +669,63 @@ static void initVulkan(void)
 	createSyncObjects();
 }
 
+void cleanupSwapchain(void)
+{
+	for (uint32_t index = 0; index < app_state.swapchain_image_size;
+	     index++) {
+		vkDestroyFramebuffer(
+		    app_state.vulkan_device,
+		    app_state.swapchain_frame_buffers[index],
+		    NULL
+		);
+	}
+
+	free(app_state.swapchain_frame_buffers);
+
+	for (uint32_t index = 0; index < app_state.swapchain_image_size;
+	     index++) {
+		vkDestroyImageView(
+		    app_state.vulkan_device,
+		    app_state.swapchain_image_views[index],
+		    NULL
+		);
+	}
+
+	free(app_state.swapchain_image_views);
+	free(app_state.swapchain_images);
+
+	vkDestroySwapchainKHR(
+	    app_state.vulkan_device, app_state.swapchain, NULL
+	);
+
+	app_state.swapchain = 0;
+}
+
+void recreateSwapchain(void)
+{
+	int32_t width = 0, height = 0;
+	glfwGetFramebufferSize(app_state.window_handle, &width, &height);
+
+	while (width == 0 || height == 0) {
+		glfwWaitEvents();
+		glfwGetFramebufferSize(
+		    app_state.window_handle, &width, &height
+		);
+	}
+
+	vkDeviceWaitIdle(app_state.vulkan_device);
+
+	cleanupSwapchain();
+
+	createSwapchain();
+	createImageView();
+	createFramebuffers();
+}
+
 static void drawFrame(uint32_t *current_frame)
 {
+	uint32_t image_index;
+
 	vkWaitForFences(
 	    app_state.vulkan_device,
 	    1,
@@ -662,21 +733,34 @@ static void drawFrame(uint32_t *current_frame)
 	    VK_TRUE,
 	    UINT64_MAX
 	);
+
+	{
+		VkResult result = vkAcquireNextImageKHR(
+		    app_state.vulkan_device,
+		    app_state.swapchain,
+		    UINT64_MAX,
+		    app_state.image_ready_write[*current_frame],
+		    VK_NULL_HANDLE,
+		    &image_index
+		);
+
+		if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+			recreateSwapchain();
+			return;
+		}
+
+		if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+			printf("Failed to acquire swapchain image");
+			abort();
+		}
+	}
+
 	vkResetFences(
 	    app_state.vulkan_device,
 	    1,
 	    app_state.image_inflight + *current_frame
 	);
 
-	uint32_t image_index;
-	vkAcquireNextImageKHR(
-	    app_state.vulkan_device,
-	    app_state.swapchain,
-	    UINT64_MAX,
-	    app_state.image_ready_write[*current_frame],
-	    VK_NULL_HANDLE,
-	    &image_index
-	);
 	vkResetCommandBuffer(app_state.command_buffer[*current_frame], 0);
 	recordCommandBuffer(image_index, *current_frame, &app_state);
 
@@ -721,7 +805,21 @@ static void drawFrame(uint32_t *current_frame)
 	    .pImageIndices = &image_index
 	};
 
-	vkQueuePresentKHR(app_state.present_queue, &present_info);
+	{
+		VkResult result =
+		    vkQueuePresentKHR(app_state.present_queue, &present_info);
+
+		if (result == VK_ERROR_OUT_OF_DATE_KHR
+		    || result == VK_SUBOPTIMAL_KHR
+		    || app_state.framebuffer_resized) {
+			app_state.framebuffer_resized = false;
+			recreateSwapchain();
+		} else if (result != VK_SUCCESS) {
+			printf("Failed to present swapchain image");
+			abort();
+		}
+	}
+
 	*current_frame = (*current_frame + 1) % MAX_FRAME_IN_FLIGHT;
 }
 
@@ -739,6 +837,17 @@ static void mainLoop(void)
 
 static void cleanup(void)
 {
+	cleanupSwapchain();
+
+	vkDestroyPipeline(app_state.vulkan_device, app_state.pipeline, NULL);
+	vkDestroyPipelineLayout(
+	    app_state.vulkan_device, app_state.pipeline_layout, NULL
+	);
+
+	vkDestroyRenderPass(
+	    app_state.vulkan_device, app_state.render_pass, NULL
+	);
+
 	for (uint32_t index = 0; index < MAX_FRAME_IN_FLIGHT; index++) {
 		vkDestroySemaphore(
 		    app_state.vulkan_device,
@@ -761,39 +870,16 @@ static void cleanup(void)
 		);
 	}
 
+	free(app_state.image_ready_write);
+	free(app_state.image_ready_read);
+	free(app_state.image_inflight);
+
 	vkDestroyCommandPool(
 	    app_state.vulkan_device, app_state.command_pool, NULL
 	);
 
-	for (uint32_t index = 0; index < app_state.swapchain_image_size;
-	     index++) {
-		vkDestroyFramebuffer(
-		    app_state.vulkan_device,
-		    app_state.swapchain_frame_buffers[index],
-		    NULL
-		);
-	}
+	free(app_state.command_buffer);
 
-	vkDestroyPipeline(app_state.vulkan_device, app_state.pipeline, NULL);
-	vkDestroyPipelineLayout(
-	    app_state.vulkan_device, app_state.pipeline_layout, NULL
-	);
-	vkDestroyRenderPass(
-	    app_state.vulkan_device, app_state.render_pass, NULL
-	);
-
-	for (uint32_t index = 0; index < app_state.swapchain_image_size;
-	     index++) {
-		vkDestroyImageView(
-		    app_state.vulkan_device,
-		    app_state.swapchain_image_views[index],
-		    NULL
-		);
-	}
-
-	vkDestroySwapchainKHR(
-	    app_state.vulkan_device, app_state.swapchain, NULL
-	);
 	vkDestroyDevice(app_state.vulkan_device, NULL);
 	vkDestroySurfaceKHR(
 	    app_state.vulkan_instance, app_state.surface, NULL

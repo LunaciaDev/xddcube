@@ -144,7 +144,7 @@ struct QueueFamilyIndices findQueueFamilies(
 		if (queue_families[queue_family_index].queueFlags
 		    & VK_QUEUE_GRAPHICS_BIT) {
 			indices.graphic_family = queue_family_index;
-			indices.has_value_bitmap += 0b1;
+			indices.has_value_bitmap += 1;
 		}
 
 		// presentation-family queue support
@@ -159,11 +159,11 @@ struct QueueFamilyIndices findQueueFamilies(
 
 			if (present_support) {
 				indices.present_family = queue_family_index;
-				indices.has_value_bitmap += 0b10;
+				indices.has_value_bitmap += 2;
 			}
 		}
 
-		if (indices.has_value_bitmap == 0b11) {
+		if (indices.has_value_bitmap == 3) {
 			return indices;
 		}
 	}
