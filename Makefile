@@ -1,5 +1,5 @@
 CC := clang
-CFLAGS := -std=c99 -Wall -Wpedantic -Wextra -Werror -MMD
+CFLAGS := -std=c99 -Wall -Wpedantic -Wextra -Werror -MMD -Iinclude
 LDFLAGS := -lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi
 SRC_DIR := src
 DEBUG_DIR := debug
