@@ -10,10 +10,10 @@
 
 extern const char *REQUIRED_DEVICE_EXTENSION[];
 extern const uint32_t REQUIRED_DEVICE_EXTENSION_SIZE;
-extern const uint32_t VERTICES_LEN;
+extern const uint32_t INDICES_LEN;
 
 struct Vertex {
-	vec2 pos;
+	vec3 pos;
 	vec3 color;
 };
 
@@ -50,6 +50,8 @@ struct AppState {
 
 	VkBuffer vertex_buffer;
 	VkDeviceMemory vertex_buffer_mem;
+	VkBuffer index_buffer;
+	VkDeviceMemory index_buffer_mem;
 
 	VkRenderPass render_pass;
 	VkPipelineLayout pipeline_layout;

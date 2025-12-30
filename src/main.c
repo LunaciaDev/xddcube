@@ -25,11 +25,21 @@ static const uint32_t DYNAMIC_STATES[] = {
 };
 
 static const struct Vertex VERTICES[] = {
-    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    { {0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+    {   {0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
+    {  {0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+    {  {0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+    { {0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}},
+    {  {-0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
+    { {-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+    { {-0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+    {{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}}
 };
-const uint32_t VERTICES_LEN = sizeof(VERTICES) / sizeof(VERTICES[0]);
+static const uint16_t VERTEX_INDICES[] = {2, 0, 4, 2, 4, 6, 0, 1, 5, 0,
+					  5, 4, 1, 3, 7, 1, 7, 5, 3, 2,
+					  6, 3, 6, 7, 1, 1, 0, 2, 1, 2,
+					  3, 7, 6, 4, 7, 4, 5};
+const uint32_t INDICES_LEN =
+    sizeof(VERTEX_INDICES) / sizeof(VERTEX_INDICES[0]);
 
 static struct AppState app_state = {.framebuffer_resized = false};
 
@@ -595,6 +605,59 @@ static void createVertexBuffer(void)
 	vkFreeMemory(app_state.vulkan_device, staging_buffer_mem, NULL);
 }
 
+static void createIndexBuffer(void)
+{
+	VkDeviceSize buffer_size = sizeof(VERTEX_INDICES);
+
+	VkBuffer staging_buffer;
+	VkDeviceMemory staging_buffer_mem;
+	createBuffer(
+	    app_state.vulkan_device,
+	    app_state.physical_device,
+	    buffer_size,
+	    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+	    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+		| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+	    &staging_buffer,
+	    &staging_buffer_mem
+	);
+
+	void *vert_buffer_data;
+	vkMapMemory(
+	    app_state.vulkan_device,
+	    staging_buffer_mem,
+	    0,
+	    buffer_size,
+	    0,
+	    &vert_buffer_data
+	);
+	memcpy(vert_buffer_data, VERTEX_INDICES, buffer_size);
+	vkUnmapMemory(app_state.vulkan_device, staging_buffer_mem);
+
+	createBuffer(
+	    app_state.vulkan_device,
+	    app_state.physical_device,
+	    buffer_size,
+	    VK_BUFFER_USAGE_TRANSFER_DST_BIT
+		| VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+	    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+	    &app_state.index_buffer,
+	    &app_state.index_buffer_mem
+	);
+
+	copyBuffer(
+	    app_state.vulkan_device,
+	    app_state.command_pool,
+	    app_state.graphic_queue,
+	    staging_buffer,
+	    app_state.index_buffer,
+	    buffer_size
+	);
+
+	vkDestroyBuffer(app_state.vulkan_device, staging_buffer, NULL);
+	vkFreeMemory(app_state.vulkan_device, staging_buffer_mem, NULL);
+}
+
 static void createCommandBuffers(void)
 {
 	app_state.command_buffer =
@@ -736,6 +799,7 @@ static void initVulkan(void)
 	createFramebuffers();
 	createCommandPool();
 	createVertexBuffer();
+	createIndexBuffer();
 	createCommandBuffers();
 	createSyncObjects();
 }
@@ -915,6 +979,11 @@ static void cleanup(void)
 	);
 	vkFreeMemory(
 	    app_state.vulkan_device, app_state.vertex_buffer_mem, NULL
+	);
+
+	vkDestroyBuffer(app_state.vulkan_device, app_state.index_buffer, NULL);
+	vkFreeMemory(
+	    app_state.vulkan_device, app_state.index_buffer_mem, NULL
 	);
 
 	vkDestroyPipeline(app_state.vulkan_device, app_state.pipeline, NULL);

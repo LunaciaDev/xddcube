@@ -425,6 +425,12 @@ void recordCommandBuffer(
 	    vertex_buffer,
 	    offset
 	);
+	vkCmdBindIndexBuffer(
+	    app_state->command_buffer[current_frame],
+	    app_state->index_buffer,
+	    0,
+	    VK_INDEX_TYPE_UINT16
+	);
 
 	vkCmdSetViewport(
 	    app_state->command_buffer[current_frame], 0, 1, &viewport
@@ -432,8 +438,8 @@ void recordCommandBuffer(
 	vkCmdSetScissor(
 	    app_state->command_buffer[current_frame], 0, 1, &scissor
 	);
-	vkCmdDraw(
-	    app_state->command_buffer[current_frame], VERTICES_LEN, 1, 0, 0
+	vkCmdDrawIndexed(
+	    app_state->command_buffer[current_frame], INDICES_LEN, 1, 0, 0, 0
 	);
 	vkCmdEndRenderPass(app_state->command_buffer[current_frame]);
 
@@ -561,21 +567,19 @@ void copyBuffer(
 	vkAllocateCommandBuffers(device, &alloc_info, &command_buffer);
 
 	VkCommandBufferBeginInfo begin_info = {
-		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-		.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+	    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+	    .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
 	};
 
 	vkBeginCommandBuffer(command_buffer, &begin_info);
-	VkBufferCopy copy_region = {
-		.size = size
-	};
+	VkBufferCopy copy_region = {.size = size};
 	vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
 	vkEndCommandBuffer(command_buffer);
 
 	VkSubmitInfo submit_info = {
-		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-		.commandBufferCount = 1,
-		.pCommandBuffers = &command_buffer
+	    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+	    .commandBufferCount = 1,
+	    .pCommandBuffers = &command_buffer
 	};
 	vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
 	vkQueueWaitIdle(queue);
