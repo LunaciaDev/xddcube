@@ -1,6 +1,6 @@
 CC := clang
 CFLAGS := -std=c99 -Wall -Wpedantic -Wextra -Werror -MMD -Iinclude
-LDFLAGS := -lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi
+LDFLAGS := -lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi -lm
 SRC_DIR := src
 DEBUG_DIR := debug
 RELEASE_DIR := release

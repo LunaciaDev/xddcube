@@ -438,6 +438,16 @@ void recordCommandBuffer(
 	vkCmdSetScissor(
 	    app_state->command_buffer[current_frame], 0, 1, &scissor
 	);
+	vkCmdBindDescriptorSets(
+	    app_state->command_buffer[current_frame],
+	    VK_PIPELINE_BIND_POINT_GRAPHICS,
+	    app_state->pipeline_layout,
+	    0,
+	    1,
+	    (app_state->descriptor_set) + current_frame,
+	    0,
+	    NULL
+	);
 	vkCmdDrawIndexed(
 	    app_state->command_buffer[current_frame], INDICES_LEN, 1, 0, 0, 0
 	);

@@ -4,7 +4,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <vulkan/vulkan_core.h>
 
+// cglm/affine-pre.h requires symbol included by affine.h
+#include "cglm/affine.h" // IWYU pragma: keep
+#include "cglm/affine-pre.h"
+#include "cglm/cam.h"
+#include "cglm/mat4.h"
+#include "cglm/util.h"
 #include "common.h"
 
 #define WINDOW_WIDTH 800
@@ -347,6 +354,33 @@ static void createRenderPass(void)
 	}
 }
 
+static void createDescriptorSetLayout(void)
+{
+	VkDescriptorSetLayoutBinding ubo_layout_binding = {
+	    .binding = 0,
+	    .descriptorCount = 1,
+	    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+	    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
+	};
+
+	VkDescriptorSetLayoutCreateInfo create_info = {
+	    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+	    .bindingCount = 1,
+	    .pBindings = &ubo_layout_binding
+	};
+
+	if (vkCreateDescriptorSetLayout(
+		app_state.vulkan_device,
+		&create_info,
+		NULL,
+		&app_state.descriptor_set_layout
+	    )
+	    != VK_SUCCESS) {
+		printf("Failed to create descriptor set layout\n");
+		abort();
+	}
+}
+
 static void createGraphicPipeline(void)
 {
 	int64_t frag_shader_size, vert_shader_size;
@@ -419,7 +453,7 @@ static void createGraphicPipeline(void)
 	    .polygonMode = VK_POLYGON_MODE_FILL,
 	    .lineWidth = 1.0,
 	    .cullMode = VK_CULL_MODE_BACK_BIT,
-	    .frontFace = VK_FRONT_FACE_CLOCKWISE,
+	    .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
 	    .depthBiasEnable = VK_FALSE
 	};
 
@@ -445,7 +479,9 @@ static void createGraphicPipeline(void)
 	};
 
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {
-	    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+	    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+	    .setLayoutCount = 1,
+	    .pSetLayouts = &app_state.descriptor_set_layout
 	};
 
 	if (vkCreatePipelineLayout(
@@ -658,6 +694,114 @@ static void createIndexBuffer(void)
 	vkFreeMemory(app_state.vulkan_device, staging_buffer_mem, NULL);
 }
 
+static void createUniformBuffer(void)
+{
+	VkDeviceSize buffer_size = sizeof(struct UniformBufferObject);
+
+	app_state.uniform_buffers =
+	    malloc(sizeof(VkBuffer) * MAX_FRAME_IN_FLIGHT);
+	app_state.uniform_buffers_mem =
+	    malloc(sizeof(VkDeviceMemory) * MAX_FRAME_IN_FLIGHT);
+	app_state.mapped_uniform_buffers =
+	    malloc(sizeof(void *) * MAX_FRAME_IN_FLIGHT);
+
+	for (uint32_t i = 0; i < MAX_FRAME_IN_FLIGHT; i++) {
+		createBuffer(
+		    app_state.vulkan_device,
+		    app_state.physical_device,
+		    buffer_size,
+		    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+			| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		    app_state.uniform_buffers + i,
+		    app_state.uniform_buffers_mem + i
+		);
+
+		vkMapMemory(
+		    app_state.vulkan_device,
+		    app_state.uniform_buffers_mem[i],
+		    0,
+		    buffer_size,
+		    0,
+		    app_state.mapped_uniform_buffers + i
+		);
+	}
+}
+
+static void createDescriptorPool(void)
+{
+	VkDescriptorPoolSize pool_size = {
+	    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+	    .descriptorCount = MAX_FRAME_IN_FLIGHT
+	};
+
+	VkDescriptorPoolCreateInfo create_info = {
+	    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+	    .poolSizeCount = 1,
+	    .pPoolSizes = &pool_size,
+	    .maxSets = MAX_FRAME_IN_FLIGHT
+	};
+
+	if (vkCreateDescriptorPool(
+		app_state.vulkan_device,
+		&create_info,
+		NULL,
+		&app_state.descriptor_pool
+	    )
+	    != VK_SUCCESS) {
+		printf("Cannot create descriptor pool\n");
+		abort();
+	}
+}
+
+static void createDescriptorSets(void)
+{
+	app_state.descriptor_set =
+	    malloc(sizeof(VkDescriptorSet) * MAX_FRAME_IN_FLIGHT);
+
+	VkDescriptorSetLayout layout_vec[MAX_FRAME_IN_FLIGHT];
+	for (uint32_t i = 0; i < MAX_FRAME_IN_FLIGHT; i++) {
+		layout_vec[i] = app_state.descriptor_set_layout;
+	}
+
+	VkDescriptorSetAllocateInfo alloc_info = {
+	    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+	    .descriptorPool = app_state.descriptor_pool,
+	    .descriptorSetCount = MAX_FRAME_IN_FLIGHT,
+	    .pSetLayouts = layout_vec
+	};
+
+	if (vkAllocateDescriptorSets(
+		app_state.vulkan_device, &alloc_info, app_state.descriptor_set
+	    )
+	    != VK_SUCCESS) {
+		printf("Failed to allocate descriptor sets");
+		abort();
+	}
+
+	for (uint32_t i = 0; i < MAX_FRAME_IN_FLIGHT; i++) {
+		VkDescriptorBufferInfo buffer_info = {
+		    .offset = 0,
+		    .buffer = app_state.uniform_buffers[i],
+		    .range = sizeof(struct UniformBufferObject)
+		};
+
+		VkWriteDescriptorSet write_info = {
+		    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		    .dstSet = app_state.descriptor_set[i],
+		    .dstBinding = 0,
+		    .dstArrayElement = 0,
+		    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+		    .descriptorCount = 1,
+		    .pBufferInfo = &buffer_info
+		};
+
+		vkUpdateDescriptorSets(
+		    app_state.vulkan_device, 1, &write_info, 0, NULL
+		);
+	}
+}
+
 static void createCommandBuffers(void)
 {
 	app_state.command_buffer =
@@ -795,11 +939,15 @@ static void initVulkan(void)
 	createSwapchain();
 	createImageView();
 	createRenderPass();
+	createDescriptorSetLayout();
 	createGraphicPipeline();
 	createFramebuffers();
 	createCommandPool();
 	createVertexBuffer();
 	createIndexBuffer();
+	createUniformBuffer();
+	createDescriptorPool();
+	createDescriptorSets();
 	createCommandBuffers();
 	createSyncObjects();
 }
@@ -857,7 +1005,42 @@ void recreateSwapchain(void)
 	createFramebuffers();
 }
 
-static void drawFrame(uint32_t *current_frame)
+static void updateUniformBuffer(
+    uint32_t current_frame,
+    double delta_time
+)
+{
+	static float cube_angle = 0;
+	cube_angle += delta_time * glm_rad(45.0f);
+
+	struct UniformBufferObject ubo = {.model = GLM_MAT4_IDENTITY_INIT};
+
+	glm_rotate(ubo.model, cube_angle, (vec3){0.0f, 0.0f, 1.0f});
+	glm_lookat(
+	    (vec3){2.0f, 2.0f, 2.0f},
+	    (vec3){0.0f, 0.0f, 0.0f},
+	    (vec3){0.0f, 0.0f, 1.0f},
+	    ubo.view
+	);
+	glm_perspective(
+	    glm_rad(45.0f),
+	    app_state.swapchain_extent.width
+		/ (float)app_state.swapchain_extent.height,
+	    0.1f,
+	    10.0f,
+	    ubo.proj
+	);
+	ubo.proj[1][1] *= -1;  // flip the camera
+
+	memcpy(
+	    app_state.mapped_uniform_buffers[current_frame], &ubo, sizeof(ubo)
+	);
+}
+
+static void drawFrame(
+    uint32_t *current_frame,
+    double delta_time
+)
 {
 	uint32_t image_index;
 
@@ -908,6 +1091,8 @@ static void drawFrame(uint32_t *current_frame)
 	VkSemaphore signal_semaphores[] = {
 	    app_state.image_ready_read[image_index]
 	};
+
+	updateUniformBuffer(*current_frame, delta_time);
 
 	VkSubmitInfo submit_info = {
 	    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -961,10 +1146,16 @@ static void drawFrame(uint32_t *current_frame)
 static void mainLoop(void)
 {
 	uint32_t current_frame = 0;
+	double prev_frame_time = glfwGetTime();
 
 	while (!glfwWindowShouldClose(app_state.window_handle)) {
+		double current_time = glfwGetTime();
+		double delta_time = current_time - prev_frame_time;
+
 		glfwPollEvents();
-		drawFrame(&current_frame);
+		drawFrame(&current_frame, delta_time);
+
+		prev_frame_time = current_time;
 	}
 
 	vkDeviceWaitIdle(app_state.vulkan_device);
@@ -973,6 +1164,30 @@ static void mainLoop(void)
 static void cleanup(void)
 {
 	cleanupSwapchain();
+
+	for (uint32_t i = 0; i < MAX_FRAME_IN_FLIGHT; i++) {
+		vkDestroyBuffer(
+		    app_state.vulkan_device, app_state.uniform_buffers[i], NULL
+		);
+		vkFreeMemory(
+		    app_state.vulkan_device,
+		    app_state.uniform_buffers_mem[i],
+		    NULL
+		);
+	}
+
+	free(app_state.uniform_buffers);
+	free(app_state.uniform_buffers_mem);
+	free(app_state.mapped_uniform_buffers);
+
+	vkDestroyDescriptorPool(
+	    app_state.vulkan_device, app_state.descriptor_pool, NULL
+	);
+	free(app_state.descriptor_set);
+
+	vkDestroyDescriptorSetLayout(
+	    app_state.vulkan_device, app_state.descriptor_set_layout, NULL
+	);
 
 	vkDestroyBuffer(
 	    app_state.vulkan_device, app_state.vertex_buffer, NULL

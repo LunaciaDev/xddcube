@@ -17,6 +17,12 @@ struct Vertex {
 	vec3 color;
 };
 
+struct UniformBufferObject {
+	mat4 model;
+	mat4 view;
+	mat4 proj;
+};
+
 struct QueueFamilyIndices {
 	uint8_t has_value_bitmap;
 	uint32_t graphic_family;
@@ -48,12 +54,19 @@ struct AppState {
 	VkCommandPool command_pool;
 	VkCommandBuffer *command_buffer;
 
+	VkDescriptorPool descriptor_pool;
+	VkDescriptorSet *descriptor_set;
+
 	VkBuffer vertex_buffer;
 	VkDeviceMemory vertex_buffer_mem;
 	VkBuffer index_buffer;
 	VkDeviceMemory index_buffer_mem;
+	VkBuffer *uniform_buffers;
+	VkDeviceMemory *uniform_buffers_mem;
+	void **mapped_uniform_buffers;
 
 	VkRenderPass render_pass;
+	VkDescriptorSetLayout descriptor_set_layout;
 	VkPipelineLayout pipeline_layout;
 	VkPipeline pipeline;
 
