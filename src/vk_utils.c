@@ -330,7 +330,7 @@ VkExtent2D chooseSwapExtent(
 	    capabilities->maxImageExtent.width
 	);
 	height = clamp(
-	    width,
+	    height,
 	    capabilities->minImageExtent.height,
 	    capabilities->maxImageExtent.height
 	);
