@@ -42,10 +42,9 @@ static const struct Vertex VERTICES[] = {
     { {-0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
     {{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}}
 };
-static const uint16_t VERTEX_INDICES[] = {2, 0, 4, 2, 4, 6, 0, 1, 5, 0,
-					  5, 4, 1, 3, 7, 1, 7, 5, 3, 2,
-					  6, 3, 6, 7, 1, 1, 0, 2, 1, 2,
-					  3, 7, 6, 4, 7, 4, 5};
+static const uint16_t VERTEX_INDICES[] = {2, 3, 1, 2, 1, 0, 6, 7, 3, 6, 3, 2,
+					  6, 2, 0, 6, 0, 4, 6, 5, 7, 6, 4, 5,
+					  7, 5, 3, 5, 1, 3, 4, 0, 5, 0, 1, 5};
 const uint32_t INDICES_LEN =
     sizeof(VERTEX_INDICES) / sizeof(VERTEX_INDICES[0]);
 
@@ -1017,6 +1016,7 @@ static void updateUniformBuffer(
 	struct UniformBufferObject ubo = {.model = GLM_MAT4_IDENTITY_INIT};
 
 	glm_rotate(ubo.model, cube_angle, (vec3){0.0f, 0.0f, 1.0f});
+	glm_rotate(ubo.model, cube_angle, (vec3){1.0f, 0.0f, 0.0f});
 	glm_lookat(
 	    (vec3){2.0f, 2.0f, 2.0f},
 	    (vec3){0.0f, 0.0f, 0.0f},
