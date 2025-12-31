@@ -18,29 +18,29 @@ SHADER_SRCS := $(shell find shaders -name 'shader.*')
 DEBUG_SHADER_OBJS := $(SHADER_SRCS:shaders/shader.%=$(DEBUG_DIR)/shaders/%.spv)
 RELEASE_SHADER_OBJS := $(SHADER_SRCS:shaders/shader.%=$(RELEASE_DIR)/shaders/%.spv)
 
-.PHONY: clean debug release
+.PHONY: clean build build_release run run_release
 
-all: debug
+all: build
 
-debug: prep build_debug
-release: prep build_release
-
-prep:
-	mkdir -p $(DEBUG_DIR)/shaders $(RELEASE_DIR)/shaders
-
-build_debug: CFLAGS += -DDEBUG -g
-build_debug: $(DEBUG_SHADER_OBJS) $(DEBUG_EXECUTABLE)
+build: CFLAGS += -DDEBUG -g
+build: $(DEBUG_DIR) $(DEBUG_SHADER_OBJS) $(DEBUG_EXECUTABLE)
 
 build_release: CFLAGS += -O2
-build_release: $(RELEASE_SHADER_OBJS) $(RELEASE_EXECUTABLE)
+build_release: $(RELEASE_DIR) $(RELEASE_SHADER_OBJS) $(RELEASE_EXECUTABLE)
 
-run_debug: debug
+run: build
 	cd $(DEBUG_DIR) && \
 	./$(EXECUTABLE)
 
-run_release: release
+run_release: build_release
 	cd $(RELEASE_DIR) && \
 	./$(EXECUTABLE)
+
+$(DEBUG_DIR):
+	mkdir -p $(DEBUG_DIR)/shaders
+
+$(RELEASE_DIR):
+	mkdir -p $(RELEASE_DIR)/shaders
 
 $(DEBUG_EXECUTABLE): $(DEBUG_OBJS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
@@ -61,7 +61,6 @@ $(RELEASE_DIR)/shaders/%.spv: shaders/shader.%
 	glslang -V $< -o $@
 
 clean:
-	rm -r $(RELEASE_DIR)
-	rm -r $(DEBUG_DIR)
+	rm -r $(RELEASE_DIR) $(DEBUG_DIR)
 
 -include $(DEPS)
