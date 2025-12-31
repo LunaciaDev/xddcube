@@ -7,7 +7,8 @@
 #include <vulkan/vulkan_core.h>
 
 // cglm/affine-pre.h requires symbol included by affine.h
-#include "cglm/affine.h" // IWYU pragma: keep
+#include "cglm/affine.h"  // IWYU pragma: keep
+// --- Keep ordering...
 #include "cglm/affine-pre.h"
 #include "cglm/cam.h"
 #include "cglm/mat4.h"
