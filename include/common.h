@@ -1,8 +1,6 @@
 #ifndef XDD__COMMON_H__
 #define XDD__COMMON_H__
 
-#include <vulkan/vulkan_core.h>
-
 #include "cglm/types.h"
 
 #define GLFW_INCLUDE_VULKAN
@@ -17,7 +15,6 @@ extern const uint32_t INDICES_LEN;
 struct Vertex {
 	vec3 pos;
 	vec3 color;
-    vec2 texture_coordinate;
 };
 
 struct UniformBufferObject {

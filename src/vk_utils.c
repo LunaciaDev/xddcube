@@ -3,8 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <vulkan/vk_platform.h>
-#include <vulkan/vulkan_core.h>
 
 #include "common.h"
 
@@ -495,13 +493,6 @@ VkVertexInputAttributeDescription *getAttributeDescription(void)
 	    .location = 1,
 	    .format = VK_FORMAT_R32G32B32_SFLOAT,
 	    .offset = offsetof(struct Vertex, color)
-	};
-
-	attribute_description[2] = (VkVertexInputAttributeDescription){
-	    .binding = 0,
-	    .location = 2,
-	    .format = VK_FORMAT_R32G32_SFLOAT,
-	    .offset = offsetof(struct Vertex, texture_coordinate)
 	};
 
 	return attribute_description;

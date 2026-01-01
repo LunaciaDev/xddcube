@@ -35,14 +35,14 @@ static const uint32_t DYNAMIC_STATES[] = {
 };
 
 static const struct Vertex VERTICES[] = {
-    {   {0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-    {  {0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},
-    {  {0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-    { {0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
-    {  {-0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-    { {-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-    { {-0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-    {{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}}
+    {   {0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
+    {  {0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+    {  {0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+    { {0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}},
+    {  {-0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
+    { {-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+    { {-0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+    {{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}}
 };
 static const uint16_t VERTEX_INDICES[] = {2, 3, 1, 2, 1, 0, 6, 7, 3, 6, 3, 2,
 					  6, 2, 0, 6, 0, 4, 6, 5, 7, 6, 4, 5,
@@ -440,7 +440,7 @@ static void createGraphicPipeline(void)
 	VkPipelineVertexInputStateCreateInfo vertex_input_info = {
 	    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 	    .vertexBindingDescriptionCount = 1,
-	    .vertexAttributeDescriptionCount = 3,
+	    .vertexAttributeDescriptionCount = 2,
 	    .pVertexBindingDescriptions = &binding_desc,
 	    .pVertexAttributeDescriptions = attr_desc
 	};
