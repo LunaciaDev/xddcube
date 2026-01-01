@@ -65,9 +65,9 @@ struct AppState {
 	void **mapped_uniform_buffers;
 
 	VkSampleCountFlagBits msaa_samples;
-    VkImage color_image;
-    VkDeviceMemory color_image_mem;
-    VkImageView color_image_view;
+	VkImage color_image;
+	VkDeviceMemory color_image_mem;
+	VkImageView color_image_view;
 
 	VkImageView texture_view;
 	VkImage texture;
@@ -109,20 +109,20 @@ struct QueueFamilyIndices findQueueFamilies(
 
 VkDeviceQueueCreateInfo *makeQueueCreateInfo(
     uint32_t *create_info_size,
-    float priority,
-    uint32_t family_indices[],
-    uint32_t indices_size
+    const float priority,
+    const uint32_t family_indices[],
+    const uint32_t indices_size
 );
 void destroyQueueCreateInfo(VkDeviceQueueCreateInfo *queue_create_info);
 
 struct SwapchainSupportDetail *querySwapchainSupport(
-    VkPhysicalDevice device,
-    VkSurfaceKHR surface
+    const VkPhysicalDevice device,
+    const VkSurfaceKHR surface
 );
 
 VkSurfaceFormatKHR chooseSwapSurfaceFormat(
     const VkSurfaceFormatKHR *formats,
-    uint32_t format_size
+    const uint32_t format_size
 );
 VkExtent2D chooseSwapExtent(
     const VkSurfaceCapabilitiesKHR *capabilities,
@@ -130,7 +130,7 @@ VkExtent2D chooseSwapExtent(
 );
 VkPresentModeKHR chooseSwapPresentMode(
     const VkPresentModeKHR *present_mode,
-    uint32_t present_mode_size
+    const uint32_t present_mode_size
 );
 
 void destroySwapchainSupportDetail(
@@ -138,71 +138,71 @@ void destroySwapchainSupportDetail(
 );
 
 VkShaderModule createShaderModule(
-    char *code,
-    int64_t size,
-    VkDevice device
+    const char *code,
+    const int64_t size,
+    const VkDevice device
 );
 
 void recordCommandBuffer(
-    uint32_t image_index,
-    uint32_t current_frame,
-    struct AppState *app_state
+    const uint32_t image_index,
+    const uint32_t current_frame,
+    const struct AppState *app_state
 );
 
 void createBuffer(
-    VkDevice device,
-    VkPhysicalDevice physical_device,
-    VkDeviceSize size,
-    VkBufferUsageFlags usage,
-    VkMemoryPropertyFlags properties,
+    const VkDevice device,
+    const VkPhysicalDevice physical_device,
+    const VkDeviceSize size,
+    const VkBufferUsageFlags usage,
+    const VkMemoryPropertyFlags properties,
     VkBuffer *buffer,
     VkDeviceMemory *buffer_memory
 );
 
 void copyBuffer(
-    VkDevice device,
-    VkCommandPool command_pool,
-    VkQueue queue,
-    VkBuffer src,
-    VkBuffer dst,
-    VkDeviceSize size
+    const VkDevice device,
+    const VkCommandPool command_pool,
+    const VkQueue queue,
+    const VkBuffer src,
+    const VkBuffer dst,
+    const VkDeviceSize size
 );
 
 void createImage(
-    VkDevice device,
-    VkPhysicalDevice physical_device,
+    const VkDevice device,
+    const VkPhysicalDevice physical_device,
     VkImage *texture,
     VkDeviceMemory *texture_buffer,
-    uint32_t width,
-    uint32_t height,
-    VkFormat image_format,
-    VkImageTiling tiling_mode,
-    VkImageUsageFlags usage_flags,
-    VkMemoryPropertyFlags mem_properties,
-    VkSampleCountFlagBits msaa_sample_count
+    const uint32_t width,
+    const uint32_t height,
+    const VkFormat image_format,
+    const VkImageTiling tiling_mode,
+    const VkImageUsageFlags usage_flags,
+    const VkMemoryPropertyFlags mem_properties,
+    const VkSampleCountFlagBits msaa_sample_count
 );
 
 void transitionImageLayout(
-    VkDevice device,
-    VkCommandPool command_pool,
-    VkQueue queue,
-    VkImage image,
-    VkImageLayout old_layout,
-    VkImageLayout new_layout
+    const VkDevice device,
+    const VkCommandPool command_pool,
+    const VkQueue queue,
+    const VkImage image,
+    const VkImageLayout old_layout,
+    const VkImageLayout new_layout
 );
 
 void copyBufferToImage(
-    VkDevice device,
-    VkCommandPool command_pool,
-    VkQueue queue,
-    VkBuffer buffer,
-    VkImage image,
-    uint32_t width,
-    uint32_t height
+    const VkDevice device,
+    const VkCommandPool command_pool,
+    const VkQueue queue,
+    const VkBuffer buffer,
+    const VkImage image,
+    const uint32_t width,
+    const uint32_t height
 );
 
 VkSampleCountFlagBits getMaxUsableSampleCount(
-    VkPhysicalDevice physical_device
+    const VkPhysicalDevice physical_device
 );
 
 // ================
@@ -214,7 +214,7 @@ VkVertexInputAttributeDescription *getAttributeDescription(void);
 // ================
 
 char *readFile(
-    char *file,
+    const char *file,
     int64_t *read_size
 );
 

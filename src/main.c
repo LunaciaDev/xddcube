@@ -123,7 +123,7 @@ static void selectPhysicalDevice(void)
 
 static void createLogicalDevice(void)
 {
-	struct QueueFamilyIndices family_indices =
+	const struct QueueFamilyIndices family_indices =
 	    findQueueFamilies(app_state.physical_device, app_state.surface);
 
 	uint32_t create_info_size;
@@ -135,11 +135,11 @@ static void createLogicalDevice(void)
 	    2
 	);
 
-	VkPhysicalDeviceFeatures device_feature = {
+	const VkPhysicalDeviceFeatures device_feature = {
 	    .samplerAnisotropy = VK_TRUE
 	};
 
-	VkDeviceCreateInfo create_info = {
+	const VkDeviceCreateInfo create_info = {
 	    .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 	    .pQueueCreateInfos = queue_create_info,
 	    .queueCreateInfoCount = create_info_size,
@@ -187,16 +187,16 @@ static void createSwapchain(void)
 	    querySwapchainSupport(
 		app_state.physical_device, app_state.surface
 	    );
-	struct QueueFamilyIndices queue_family_indices =
+	const struct QueueFamilyIndices queue_family_indices =
 	    findQueueFamilies(app_state.physical_device, app_state.surface);
 
-	VkSurfaceFormatKHR surface_format = chooseSwapSurfaceFormat(
+	const VkSurfaceFormatKHR surface_format = chooseSwapSurfaceFormat(
 	    swapchain_support->formats, swapchain_support->format_size
 	);
-	VkExtent2D extent = chooseSwapExtent(
+	const VkExtent2D extent = chooseSwapExtent(
 	    &swapchain_support->capabilities, app_state.window_handle
 	);
-	VkPresentModeKHR present_mode = chooseSwapPresentMode(
+	const VkPresentModeKHR present_mode = chooseSwapPresentMode(
 	    swapchain_support->present_mode,
 	    swapchain_support->present_mode_size
 	);
@@ -230,7 +230,7 @@ static void createSwapchain(void)
 		    VK_SHARING_MODE_CONCURRENT;
 		swapchain_create_info.queueFamilyIndexCount = 2;
 		swapchain_create_info.pQueueFamilyIndices =
-		    (uint32_t[]){queue_family_indices.graphic_family,
+		    (const uint32_t[]){queue_family_indices.graphic_family,
 				 queue_family_indices.present_family};
 	} else {
 		swapchain_create_info.imageSharingMode =
@@ -277,7 +277,7 @@ static void createImageView(void)
 
 	for (uint32_t index = 0; index < app_state.swapchain_image_size;
 	     index++) {
-		VkImageViewCreateInfo view_create_info = {
+		const VkImageViewCreateInfo view_create_info = {
 		    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		    .image = app_state.swapchain_images[index],
 		    .viewType = VK_IMAGE_VIEW_TYPE_2D,
@@ -310,7 +310,7 @@ static void createImageView(void)
 
 static void createRenderPass(void)
 {
-	VkAttachmentDescription color_attachment = {
+	const VkAttachmentDescription color_attachment = {
 	    .format = app_state.swapchain_format,
 	    .samples = app_state.msaa_samples,
 	    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -321,7 +321,7 @@ static void createRenderPass(void)
 	    .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 	};
 
-	VkAttachmentDescription color_attachment_resolve = {
+	const VkAttachmentDescription color_attachment_resolve = {
 	    .format = app_state.swapchain_format,
 	    .samples = VK_SAMPLE_COUNT_1_BIT,
 	    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -332,22 +332,22 @@ static void createRenderPass(void)
 	    .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 	};
 
-	VkAttachmentReference color_attachment_ref = {
+	const VkAttachmentReference color_attachment_ref = {
 	    .attachment = 0, .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
 	};
 
-	VkAttachmentReference color_attachment_resolve_ref = {
+	const VkAttachmentReference color_attachment_resolve_ref = {
 	    .attachment = 1, .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
 	};
 
-	VkSubpassDescription subpass = {
+	const VkSubpassDescription subpass = {
 	    .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
 	    .colorAttachmentCount = 1,
 	    .pColorAttachments = &color_attachment_ref,
 	    .pResolveAttachments = &color_attachment_resolve_ref
 	};
 
-	VkSubpassDependency subpass_dependency = {
+	const VkSubpassDependency subpass_dependency = {
 	    .srcSubpass = VK_SUBPASS_EXTERNAL,
 	    .dstSubpass = 0,
 	    .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -356,7 +356,7 @@ static void createRenderPass(void)
 	    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 	};
 
-	VkRenderPassCreateInfo render_pass_info = {
+	const VkRenderPassCreateInfo render_pass_info = {
 	    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
 	    .attachmentCount = 2,
 	    .pAttachments =
@@ -382,14 +382,14 @@ static void createRenderPass(void)
 
 static void createDescriptorSetLayout(void)
 {
-	VkDescriptorSetLayoutBinding ubo_layout_binding = {
+	const VkDescriptorSetLayoutBinding ubo_layout_binding = {
 	    .binding = 0,
 	    .descriptorCount = 1,
 	    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 	    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
 	};
 
-	VkDescriptorSetLayoutBinding sampler_binding = {
+	const VkDescriptorSetLayoutBinding sampler_binding = {
 	    .binding = 1,
 	    .descriptorCount = 1,
 	    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -397,7 +397,7 @@ static void createDescriptorSetLayout(void)
 	    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
 	};
 
-	VkDescriptorSetLayoutCreateInfo create_info = {
+	const VkDescriptorSetLayoutCreateInfo create_info = {
 	    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
 	    .bindingCount = 2,
 	    .pBindings = (VkDescriptorSetLayoutBinding[]){ubo_layout_binding,
@@ -423,32 +423,32 @@ static void createGraphicPipeline(void)
 	char *frag_shader = readFile("shaders/frag.spv", &frag_shader_size);
 	char *vert_shader = readFile("shaders/vert.spv", &vert_shader_size);
 
-	VkShaderModule frag_shader_module = createShaderModule(
+	const VkShaderModule frag_shader_module = createShaderModule(
 	    frag_shader, frag_shader_size, app_state.vulkan_device
 	);
-	VkShaderModule vert_shader_module = createShaderModule(
+	const VkShaderModule vert_shader_module = createShaderModule(
 	    vert_shader, vert_shader_size, app_state.vulkan_device
 	);
 
-	VkPipelineShaderStageCreateInfo vert_stage_info = {
+	const VkPipelineShaderStageCreateInfo vert_stage_info = {
 	    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 	    .stage = VK_SHADER_STAGE_VERTEX_BIT,
 	    .module = vert_shader_module,
 	    .pName = "main"
 	};
 
-	VkPipelineShaderStageCreateInfo frag_stage_info = {
+	const VkPipelineShaderStageCreateInfo frag_stage_info = {
 	    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 	    .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
 	    .module = frag_shader_module,
 	    .pName = "main"
 	};
 
-	VkPipelineShaderStageCreateInfo shader_stage_info_vec[] = {
+	const VkPipelineShaderStageCreateInfo shader_stage_info_vec[] = {
 	    vert_stage_info, frag_stage_info
 	};
 
-	VkPipelineDynamicStateCreateInfo dynamic_state_info = {
+	const VkPipelineDynamicStateCreateInfo dynamic_state_info = {
 	    .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
 	    .dynamicStateCount = DYNAMIC_STATES_SIZE,
 	    .pDynamicStates = DYNAMIC_STATES
@@ -459,7 +459,7 @@ static void createGraphicPipeline(void)
 	VkVertexInputAttributeDescription *attr_desc =
 	    getAttributeDescription();
 
-	VkPipelineVertexInputStateCreateInfo vertex_input_info = {
+	const VkPipelineVertexInputStateCreateInfo vertex_input_info = {
 	    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 	    .vertexBindingDescriptionCount = 1,
 	    .vertexAttributeDescriptionCount = 1,
@@ -467,20 +467,20 @@ static void createGraphicPipeline(void)
 	    .pVertexAttributeDescriptions = attr_desc
 	};
 
-	VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {
+	const VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {
 	    .sType =
 		VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
 	    .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
 	    .primitiveRestartEnable = VK_FALSE
 	};
 
-	VkPipelineViewportStateCreateInfo viewport_state_info = {
+	const VkPipelineViewportStateCreateInfo viewport_state_info = {
 	    .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
 	    .viewportCount = 1,
 	    .scissorCount = 1
 	};
 
-	VkPipelineRasterizationStateCreateInfo rasterization_info = {
+	const VkPipelineRasterizationStateCreateInfo rasterization_info = {
 	    .sType =
 		VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
 	    .depthClampEnable = VK_FALSE,
@@ -492,13 +492,13 @@ static void createGraphicPipeline(void)
 	    .depthBiasEnable = VK_FALSE
 	};
 
-	VkPipelineMultisampleStateCreateInfo multisample_info = {
+	const VkPipelineMultisampleStateCreateInfo multisample_info = {
 	    .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
 	    .sampleShadingEnable = VK_FALSE,
 	    .rasterizationSamples = app_state.msaa_samples
 	};
 
-	VkPipelineColorBlendAttachmentState color_blend_attachment = {
+	const VkPipelineColorBlendAttachmentState color_blend_attachment = {
 	    .colorWriteMask = VK_COLOR_COMPONENT_R_BIT
 			    | VK_COLOR_COMPONENT_G_BIT
 			    | VK_COLOR_COMPONENT_B_BIT
@@ -506,14 +506,14 @@ static void createGraphicPipeline(void)
 	    .blendEnable = VK_FALSE
 	};
 
-	VkPipelineColorBlendStateCreateInfo color_blending = {
+	const VkPipelineColorBlendStateCreateInfo color_blending = {
 	    .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
 	    .logicOpEnable = VK_FALSE,
 	    .attachmentCount = 1,
 	    .pAttachments = &color_blend_attachment
 	};
 
-	VkPipelineLayoutCreateInfo pipeline_layout_info = {
+	const VkPipelineLayoutCreateInfo pipeline_layout_info = {
 	    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 	    .setLayoutCount = 1,
 	    .pSetLayouts = &app_state.descriptor_set_layout
@@ -530,7 +530,7 @@ static void createGraphicPipeline(void)
 		abort();
 	}
 
-	VkGraphicsPipelineCreateInfo graphic_pipeline_info = {
+	const VkGraphicsPipelineCreateInfo graphic_pipeline_info = {
 	    .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 	    .stageCount = 2,
 	    .pStages = shader_stage_info_vec,
@@ -579,12 +579,12 @@ static void createFramebuffers(void)
 
 	for (uint32_t index = 0; index < app_state.swapchain_image_size;
 	     index++) {
-		VkImageView attachment[] = {
+		const VkImageView attachment[] = {
 		    app_state.color_image_view,
 		    app_state.swapchain_image_views[index]
 		};
 
-		VkFramebufferCreateInfo frame_create_info = {
+		const VkFramebufferCreateInfo frame_create_info = {
 		    .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
 		    .renderPass = app_state.render_pass,
 		    .attachmentCount = 2,
@@ -609,10 +609,10 @@ static void createFramebuffers(void)
 
 static void createCommandPool(void)
 {
-	struct QueueFamilyIndices queue_family_indices =
+	const struct QueueFamilyIndices queue_family_indices =
 	    findQueueFamilies(app_state.physical_device, app_state.surface);
 
-	VkCommandPoolCreateInfo pool_info = {
+	const VkCommandPoolCreateInfo pool_info = {
 	    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 	    .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
 	    .queueFamilyIndex = queue_family_indices.graphic_family
@@ -625,7 +625,7 @@ static void createCommandPool(void)
 
 static void createVertexBuffer(void)
 {
-	VkDeviceSize buffer_size = sizeof(VERTICES);
+	const VkDeviceSize buffer_size = sizeof(VERTICES);
 
 	VkBuffer staging_buffer;
 	VkDeviceMemory staging_buffer_mem;
@@ -683,7 +683,7 @@ static void createTextureImage(void)
 	stbi_uc *pixels = stbi_load(
 	    "../assets/xdd.png", &width, &height, &channel, STBI_rgb_alpha
 	);
-	VkDeviceSize image_size = width * height * 4;
+	const VkDeviceSize image_size = width * height * 4;
 
 	if (pixels == NULL) {
 		printf("asset not found\n");
@@ -763,7 +763,7 @@ static void createTextureImage(void)
 
 static void createTextureImageView(void)
 {
-	VkImageViewCreateInfo view_info = {
+	const VkImageViewCreateInfo view_info = {
 	    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 	    .image = app_state.texture,
 	    .viewType = VK_IMAGE_VIEW_TYPE_2D,
@@ -794,7 +794,7 @@ static void createTextureSampler(void)
 	VkPhysicalDeviceProperties properties;
 	vkGetPhysicalDeviceProperties(app_state.physical_device, &properties);
 
-	VkSamplerCreateInfo create_info = {
+	const VkSamplerCreateInfo create_info = {
 	    .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
 	    .magFilter = VK_FILTER_LINEAR,
 	    .minFilter = VK_FILTER_LINEAR,
@@ -826,7 +826,7 @@ static void createTextureSampler(void)
 
 static void createColorResource(void)
 {
-	VkFormat color_format = app_state.swapchain_format;
+	const VkFormat color_format = app_state.swapchain_format;
 	createImage(
 	    app_state.vulkan_device,
 	    app_state.physical_device,
@@ -842,7 +842,7 @@ static void createColorResource(void)
 	    app_state.msaa_samples
 	);
 
-	VkImageViewCreateInfo view_info = {
+	const VkImageViewCreateInfo view_info = {
 	    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 	    .image = app_state.color_image,
 	    .viewType = VK_IMAGE_VIEW_TYPE_2D,
@@ -870,7 +870,7 @@ static void createColorResource(void)
 
 static void createIndexBuffer(void)
 {
-	VkDeviceSize buffer_size = sizeof(VERTEX_INDICES);
+	const VkDeviceSize buffer_size = sizeof(VERTEX_INDICES);
 
 	VkBuffer staging_buffer;
 	VkDeviceMemory staging_buffer_mem;
@@ -923,7 +923,7 @@ static void createIndexBuffer(void)
 
 static void createUniformBuffer(void)
 {
-	VkDeviceSize buffer_size = sizeof(struct UniformBufferObject);
+	const VkDeviceSize buffer_size = sizeof(struct UniformBufferObject);
 
 	app_state.uniform_buffers =
 	    malloc(sizeof(VkBuffer) * MAX_FRAME_IN_FLIGHT);
@@ -957,16 +957,16 @@ static void createUniformBuffer(void)
 
 static void createDescriptorPool(void)
 {
-	VkDescriptorPoolSize ubo_pool_size = {
+	const VkDescriptorPoolSize ubo_pool_size = {
 	    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 	    .descriptorCount = MAX_FRAME_IN_FLIGHT
 	};
-	VkDescriptorPoolSize combined_sampler_pool_size = {
+	const VkDescriptorPoolSize combined_sampler_pool_size = {
 	    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 	    .descriptorCount = MAX_FRAME_IN_FLIGHT
 	};
 
-	VkDescriptorPoolCreateInfo create_info = {
+	const VkDescriptorPoolCreateInfo create_info = {
 	    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 	    .poolSizeCount = 2,
 	    .pPoolSizes = (VkDescriptorPoolSize[]){ubo_pool_size,
@@ -996,7 +996,7 @@ static void createDescriptorSets(void)
 		layout_vec[i] = app_state.descriptor_set_layout;
 	}
 
-	VkDescriptorSetAllocateInfo alloc_info = {
+	const VkDescriptorSetAllocateInfo alloc_info = {
 	    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 	    .descriptorPool = app_state.descriptor_pool,
 	    .descriptorSetCount = MAX_FRAME_IN_FLIGHT,
@@ -1012,19 +1012,19 @@ static void createDescriptorSets(void)
 	}
 
 	for (uint32_t i = 0; i < MAX_FRAME_IN_FLIGHT; i++) {
-		VkDescriptorBufferInfo buffer_info = {
+		const VkDescriptorBufferInfo buffer_info = {
 		    .offset = 0,
 		    .buffer = app_state.uniform_buffers[i],
 		    .range = sizeof(struct UniformBufferObject)
 		};
 
-		VkDescriptorImageInfo image_info = {
+		const VkDescriptorImageInfo image_info = {
 		    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 		    .imageView = app_state.texture_view,
 		    .sampler = app_state.texture_sampler
 		};
 
-		VkWriteDescriptorSet buffer_write_info = {
+		const VkWriteDescriptorSet buffer_write_info = {
 		    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 		    .dstSet = app_state.descriptor_set[i],
 		    .dstBinding = 0,
@@ -1034,7 +1034,7 @@ static void createDescriptorSets(void)
 		    .pBufferInfo = &buffer_info
 		};
 
-		VkWriteDescriptorSet image_write_info = {
+		const VkWriteDescriptorSet image_write_info = {
 		    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 		    .dstSet = app_state.descriptor_set[i],
 		    .dstBinding = 1,
@@ -1062,7 +1062,7 @@ static void createCommandBuffers(void)
 	    malloc(sizeof(VkCommandBuffer) * MAX_FRAME_IN_FLIGHT);
 	assert(app_state.command_buffer != NULL);
 
-	VkCommandBufferAllocateInfo allocate_info = {
+	const VkCommandBufferAllocateInfo allocate_info = {
 	    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 	    .commandPool = app_state.command_pool,
 	    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
@@ -1093,11 +1093,11 @@ static void createSyncObjects(void)
 	assert(app_state.image_ready_read != NULL);
 	assert(app_state.image_inflight != NULL);
 
-	VkSemaphoreCreateInfo semaphore_info = {
+	const VkSemaphoreCreateInfo semaphore_info = {
 	    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
 	};
 
-	VkFenceCreateInfo fence_info = {
+	const VkFenceCreateInfo fence_info = {
 	    .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
 	    .flags = VK_FENCE_CREATE_SIGNALED_BIT
 	};
@@ -1146,7 +1146,7 @@ static void initVulkan(void)
 	}
 #endif
 
-	VkApplicationInfo app_info = {
+	const VkApplicationInfo app_info = {
 	    .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
 	    .pApplicationName = "xddcube",
 	    .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
@@ -1159,7 +1159,7 @@ static void initVulkan(void)
 	const char **glfw_extensions =
 	    glfwGetRequiredInstanceExtensions(&glfw_extension_count);
 
-	VkInstanceCreateInfo create_info = {
+	const VkInstanceCreateInfo create_info = {
 	    .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 	    .pApplicationInfo = &app_info,
 	    .enabledExtensionCount = glfw_extension_count,
@@ -1271,8 +1271,8 @@ void recreateSwapchain(void)
 }
 
 static void updateUniformBuffer(
-    uint32_t current_frame,
-    double delta_time
+    const uint32_t current_frame,
+    const double delta_time
 )
 {
 	static float cube_angle = 0;
@@ -1305,7 +1305,7 @@ static void updateUniformBuffer(
 
 static void drawFrame(
     uint32_t *current_frame,
-    double delta_time
+    const double delta_time
 )
 {
 	uint32_t image_index;
@@ -1319,7 +1319,7 @@ static void drawFrame(
 	);
 
 	{
-		VkResult result = vkAcquireNextImageKHR(
+		const VkResult result = vkAcquireNextImageKHR(
 		    app_state.vulkan_device,
 		    app_state.swapchain,
 		    UINT64_MAX,
@@ -1348,19 +1348,19 @@ static void drawFrame(
 	vkResetCommandBuffer(app_state.command_buffer[*current_frame], 0);
 	recordCommandBuffer(image_index, *current_frame, &app_state);
 
-	VkSemaphore wait_semaphores[] = {
+	const VkSemaphore wait_semaphores[] = {
 	    app_state.image_ready_write[*current_frame]
 	};
-	VkPipelineStageFlags wait_stages[] = {
+	const VkPipelineStageFlags wait_stages[] = {
 	    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
 	};
-	VkSemaphore signal_semaphores[] = {
+	const VkSemaphore signal_semaphores[] = {
 	    app_state.image_ready_read[image_index]
 	};
 
 	updateUniformBuffer(*current_frame, delta_time);
 
-	VkSubmitInfo submit_info = {
+	const VkSubmitInfo submit_info = {
 	    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 	    .waitSemaphoreCount = 1,
 	    .pWaitSemaphores = wait_semaphores,
@@ -1382,7 +1382,7 @@ static void drawFrame(
 		abort();
 	}
 
-	VkPresentInfoKHR present_info = {
+	const VkPresentInfoKHR present_info = {
 	    .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 	    .waitSemaphoreCount = 1,
 	    .pWaitSemaphores = signal_semaphores,
@@ -1392,7 +1392,7 @@ static void drawFrame(
 	};
 
 	{
-		VkResult result =
+		const VkResult result =
 		    vkQueuePresentKHR(app_state.present_queue, &present_info);
 
 		if (result == VK_ERROR_OUT_OF_DATE_KHR
@@ -1415,8 +1415,8 @@ static void mainLoop(void)
 	double prev_frame_time = glfwGetTime();
 
 	while (!glfwWindowShouldClose(app_state.window_handle)) {
-		double current_time = glfwGetTime();
-		double delta_time = current_time - prev_frame_time;
+		const double current_time = glfwGetTime();
+		const double delta_time = current_time - prev_frame_time;
 
 		glfwPollEvents();
 		drawFrame(&current_frame, delta_time);

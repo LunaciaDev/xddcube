@@ -8,8 +8,8 @@
 
 static uint32_t clamp(
     uint32_t value,
-    uint32_t min,
-    uint32_t max
+    const uint32_t min,
+    const uint32_t max
 )
 {
 	value = value < min ? min : value;
@@ -104,7 +104,8 @@ bool isDeviceSuitable(
     const VkSurfaceKHR surface
 )
 {
-	struct QueueFamilyIndices indices = findQueueFamilies(device, surface);
+	const struct QueueFamilyIndices indices =
+	    findQueueFamilies(device, surface);
 	bool has_extension_support = checkDeviceExtensionSupport(device);
 
 	if (!has_extension_support) return false;
@@ -180,9 +181,9 @@ struct QueueFamilyIndices findQueueFamilies(
 
 VkDeviceQueueCreateInfo *makeQueueCreateInfo(
     uint32_t *create_info_size,
-    float priority,
-    uint32_t family_indices[],
-    uint32_t indices_size
+    const float priority,
+    const uint32_t family_indices[],
+    const uint32_t indices_size
 )
 {
 	// Deduplicate family_indices
@@ -215,7 +216,7 @@ VkDeviceQueueCreateInfo *makeQueueCreateInfo(
 	assert(queue_create_infos != NULL);
 
 	for (uint32_t dd_index = 0; dd_index < dd_size; dd_index++) {
-		queue_create_infos[dd_index] = (VkDeviceQueueCreateInfo){
+		queue_create_infos[dd_index] = (const VkDeviceQueueCreateInfo){
 		    .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
 		    .queueFamilyIndex = deduplicated_family_indices[dd_index],
 		    .queueCount = 1,
@@ -232,8 +233,8 @@ void destroyQueueCreateInfo(VkDeviceQueueCreateInfo *queue_create_info)
 }
 
 struct SwapchainSupportDetail *querySwapchainSupport(
-    VkPhysicalDevice device,
-    VkSurfaceKHR surface
+    const VkPhysicalDevice device,
+    const VkSurfaceKHR surface
 )
 {
 	struct SwapchainSupportDetail *details =
@@ -288,7 +289,7 @@ void destroySwapchainSupportDetail(
 
 VkSurfaceFormatKHR chooseSwapSurfaceFormat(
     const VkSurfaceFormatKHR *formats,
-    uint32_t format_size
+    const uint32_t format_size
 )
 {
 	for (uint32_t index = 0; index < format_size; index++) {
@@ -304,7 +305,7 @@ VkSurfaceFormatKHR chooseSwapSurfaceFormat(
 
 VkPresentModeKHR chooseSwapPresentMode(
     const VkPresentModeKHR *present_mode,
-    uint32_t present_mode_size
+    const uint32_t present_mode_size
 )
 {
 	for (uint32_t index = 0; index < present_mode_size; index++) {
@@ -343,12 +344,12 @@ VkExtent2D chooseSwapExtent(
 }
 
 VkShaderModule createShaderModule(
-    char *code,
-    int64_t size,
-    VkDevice device
+    const char *code,
+    const int64_t size,
+    const VkDevice device
 )
 {
-	VkShaderModuleCreateInfo create_info = {
+	const VkShaderModuleCreateInfo create_info = {
 	    .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
 	    .codeSize = size,
 	    .pCode = (uint32_t *)code
@@ -366,12 +367,12 @@ VkShaderModule createShaderModule(
 }
 
 void recordCommandBuffer(
-    uint32_t image_index,
-    uint32_t current_frame,
-    struct AppState *app_state
+    const uint32_t image_index,
+    const uint32_t current_frame,
+    const struct AppState *app_state
 )
 {
-	VkCommandBufferBeginInfo begin_info = {
+	const VkCommandBufferBeginInfo begin_info = {
 	    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
 	};
 
@@ -383,10 +384,10 @@ void recordCommandBuffer(
 		abort();
 	}
 
-	VkClearValue clear_color = {
+	const VkClearValue clear_color = {
 	    .color = {.float32 = {0.5f, 0.5f, 0.5f, 1.0f}}
 	};
-	VkRenderPassBeginInfo render_pass_info = {
+	const VkRenderPassBeginInfo render_pass_info = {
 	    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 	    .renderPass = app_state->render_pass,
 	    .framebuffer = app_state->swapchain_frame_buffers[image_index],
@@ -396,7 +397,7 @@ void recordCommandBuffer(
 	    .pClearValues = &clear_color
 	};
 
-	VkViewport viewport = {
+	const VkViewport viewport = {
 	    .x = 0.0,
 	    .y = 0.0,
 	    .width = app_state->swapchain_extent.width,
@@ -404,7 +405,7 @@ void recordCommandBuffer(
 	    .minDepth = 0.0,
 	    .maxDepth = 1.0
 	};
-	VkRect2D scissor = {
+	const VkRect2D scissor = {
 	    .offset = {0, 0},
               .extent = app_state->swapchain_extent
 	};
@@ -420,8 +421,8 @@ void recordCommandBuffer(
 	    app_state->pipeline
 	);
 
-	VkBuffer vertex_buffer[] = {app_state->vertex_buffer};
-	VkDeviceSize offset[] = {0};
+	const VkBuffer vertex_buffer[] = {app_state->vertex_buffer};
+	const VkDeviceSize offset[] = {0};
 	vkCmdBindVertexBuffers(
 	    app_state->command_buffer[current_frame],
 	    0,
@@ -492,9 +493,9 @@ VkVertexInputAttributeDescription *getAttributeDescription(void)
 }
 
 static uint32_t findMemoryType(
-    VkPhysicalDevice device,
-    uint32_t type_filter,
-    VkMemoryPropertyFlags properties
+    const VkPhysicalDevice device,
+    const uint32_t type_filter,
+    const VkMemoryPropertyFlags properties
 )
 {
 	VkPhysicalDeviceMemoryProperties mem_properties;
@@ -513,16 +514,16 @@ static uint32_t findMemoryType(
 }
 
 void createBuffer(
-    VkDevice device,
-    VkPhysicalDevice physical_device,
-    VkDeviceSize size,
-    VkBufferUsageFlags usage,
-    VkMemoryPropertyFlags properties,
+    const VkDevice device,
+    const VkPhysicalDevice physical_device,
+    const VkDeviceSize size,
+    const VkBufferUsageFlags usage,
+    const VkMemoryPropertyFlags properties,
     VkBuffer *buffer,
     VkDeviceMemory *buffer_memory
 )
 {
-	VkBufferCreateInfo buffer_info = {
+	const VkBufferCreateInfo buffer_info = {
 	    .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 	    .size = size,
 	    .usage = usage,
@@ -537,7 +538,7 @@ void createBuffer(
 	VkMemoryRequirements mem_requirement;
 	vkGetBufferMemoryRequirements(device, *buffer, &mem_requirement);
 
-	VkMemoryAllocateInfo allocate_info = {
+	const VkMemoryAllocateInfo allocate_info = {
 	    .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 	    .allocationSize = mem_requirement.size,
 	    .memoryTypeIndex = findMemoryType(
@@ -555,20 +556,20 @@ void createBuffer(
 }
 
 void createImage(
-    VkDevice device,
-    VkPhysicalDevice physical_device,
+    const VkDevice device,
+    const VkPhysicalDevice physical_device,
     VkImage *texture,
     VkDeviceMemory *texture_buffer,
-    uint32_t width,
-    uint32_t height,
-    VkFormat image_format,
-    VkImageTiling tiling_mode,
-    VkImageUsageFlags usage_flags,
-    VkMemoryPropertyFlags mem_properties,
-    VkSampleCountFlagBits msaa_sample_count
+    const uint32_t width,
+    const uint32_t height,
+    const VkFormat image_format,
+    const VkImageTiling tiling_mode,
+    const VkImageUsageFlags usage_flags,
+    const VkMemoryPropertyFlags mem_properties,
+    const VkSampleCountFlagBits msaa_sample_count
 )
 {
-	VkImageCreateInfo create_info = {
+	const VkImageCreateInfo create_info = {
 	    .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 	    .imageType = VK_IMAGE_TYPE_2D,
 	    .extent = {.width = width, .height = height, .depth = 1},
@@ -590,7 +591,7 @@ void createImage(
 	VkMemoryRequirements requirement;
 	vkGetImageMemoryRequirements(device, *texture, &requirement);
 
-	VkMemoryAllocateInfo alloc_info = {
+	const VkMemoryAllocateInfo alloc_info = {
 	    .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 	    .allocationSize = requirement.size,
 	    .memoryTypeIndex = findMemoryType(
@@ -608,11 +609,11 @@ void createImage(
 }
 
 static VkCommandBuffer beginCmdBuf(
-    VkDevice device,
-    VkCommandPool command_pool
+    const VkDevice device,
+    const VkCommandPool command_pool
 )
 {
-	VkCommandBufferAllocateInfo alloc_info = {
+	const VkCommandBufferAllocateInfo alloc_info = {
 	    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 	    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
 	    .commandPool = command_pool,
@@ -622,7 +623,7 @@ static VkCommandBuffer beginCmdBuf(
 	VkCommandBuffer command_buffer;
 	vkAllocateCommandBuffers(device, &alloc_info, &command_buffer);
 
-	VkCommandBufferBeginInfo begin_info = {
+	const VkCommandBufferBeginInfo begin_info = {
 	    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 	    .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
 	};
@@ -633,10 +634,10 @@ static VkCommandBuffer beginCmdBuf(
 }
 
 static void endCmdBuf(
-    VkDevice device,
-    VkCommandPool command_pool,
-    VkQueue queue,
-    VkCommandBuffer command_buffer
+    const VkDevice device,
+    const VkCommandPool command_pool,
+    const VkQueue queue,
+    const VkCommandBuffer command_buffer
 )
 {
 	vkEndCommandBuffer(command_buffer);
@@ -653,32 +654,34 @@ static void endCmdBuf(
 }
 
 void copyBuffer(
-    VkDevice device,
-    VkCommandPool command_pool,
-    VkQueue queue,
-    VkBuffer src,
-    VkBuffer dst,
-    VkDeviceSize size
+    const VkDevice device,
+    const VkCommandPool command_pool,
+    const VkQueue queue,
+    const VkBuffer src,
+    const VkBuffer dst,
+    const VkDeviceSize size
 )
 {
-	VkCommandBuffer command_buffer = beginCmdBuf(device, command_pool);
+	const VkCommandBuffer command_buffer =
+	    beginCmdBuf(device, command_pool);
 
-	VkBufferCopy copy_region = {.size = size};
+	const VkBufferCopy copy_region = {.size = size};
 	vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
 
 	endCmdBuf(device, command_pool, queue, command_buffer);
 }
 
 void transitionImageLayout(
-    VkDevice device,
-    VkCommandPool command_pool,
-    VkQueue queue,
-    VkImage image,
-    VkImageLayout old_layout,
-    VkImageLayout new_layout
+    const VkDevice device,
+    const VkCommandPool command_pool,
+    const VkQueue queue,
+    const VkImage image,
+    const VkImageLayout old_layout,
+    const VkImageLayout new_layout
 )
 {
-	VkCommandBuffer command_buffer = beginCmdBuf(device, command_pool);
+	const VkCommandBuffer command_buffer =
+	    beginCmdBuf(device, command_pool);
 
 	VkImageMemoryBarrier barrier = {
 	    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -732,18 +735,19 @@ void transitionImageLayout(
 }
 
 void copyBufferToImage(
-    VkDevice device,
-    VkCommandPool command_pool,
-    VkQueue queue,
-    VkBuffer buffer,
-    VkImage image,
-    uint32_t width,
-    uint32_t height
+    const VkDevice device,
+    const VkCommandPool command_pool,
+    const VkQueue queue,
+    const VkBuffer buffer,
+    const VkImage image,
+    const uint32_t width,
+    const uint32_t height
 )
 {
-	VkCommandBuffer command_buffer = beginCmdBuf(device, command_pool);
+	const VkCommandBuffer command_buffer =
+	    beginCmdBuf(device, command_pool);
 
-	VkBufferImageCopy region = {
+	const VkBufferImageCopy region = {
 	    .bufferOffset = 0,
 	    .bufferRowLength = 0,
 	    .bufferImageHeight = 0,
@@ -770,12 +774,14 @@ void copyBufferToImage(
 	endCmdBuf(device, command_pool, queue, command_buffer);
 }
 
-VkSampleCountFlagBits getMaxUsableSampleCount(VkPhysicalDevice physical_device)
+VkSampleCountFlagBits getMaxUsableSampleCount(
+    const VkPhysicalDevice physical_device
+)
 {
 	VkPhysicalDeviceProperties properties;
 	vkGetPhysicalDeviceProperties(physical_device, &properties);
 
-	VkSampleCountFlags counts =
+	const VkSampleCountFlags counts =
 	    properties.limits.framebufferColorSampleCounts
 	    & properties.limits.framebufferDepthSampleCounts;
 

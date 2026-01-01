@@ -8,7 +8,7 @@
  * The pointer returned by this function must be freed by the caller.
  */
 char *readFile(
-    char *file,
+    const char *file,
     int64_t *read_size
 )
 {
