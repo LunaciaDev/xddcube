@@ -17,6 +17,7 @@ Dependencies:
 
 - [GLFW](https://www.glfw.org/) and its dependencies for your platform
 - Vulkan development headers
+- GLSL compiler like [glslang](https://github.com/KhronosGroup/glslang)
 - [cglm](https://github.com/recp/cglm) headers
 - [stb_image.h](https://github.com/nothings/stb)
 - make (or whatever build system you prefer)
