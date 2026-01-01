@@ -1,6 +1,8 @@
 #ifndef XDD__COMMON_H__
 #define XDD__COMMON_H__
 
+#include <vulkan/vulkan_core.h>
+
 #include "cglm/types.h"
 
 #define GLFW_INCLUDE_VULKAN
@@ -15,6 +17,7 @@ extern const uint32_t INDICES_LEN;
 struct Vertex {
 	vec3 pos;
 	vec3 color;
+    vec2 texture_coordinate;
 };
 
 struct UniformBufferObject {
@@ -64,6 +67,11 @@ struct AppState {
 	VkBuffer *uniform_buffers;
 	VkDeviceMemory *uniform_buffers_mem;
 	void **mapped_uniform_buffers;
+
+    VkImageView texture_view;
+	VkImage texture;
+	VkDeviceMemory texture_buffer;
+    VkSampler texture_sampler;
 
 	VkRenderPass render_pass;
 	VkDescriptorSetLayout descriptor_set_layout;
@@ -157,6 +165,38 @@ void copyBuffer(
     VkBuffer src,
     VkBuffer dst,
     VkDeviceSize size
+);
+
+void createImage(
+    VkDevice device,
+    VkPhysicalDevice physical_device,
+    VkImage *texture,
+    VkDeviceMemory *texture_buffer,
+    uint32_t width,
+    uint32_t height,
+    VkFormat image_format,
+    VkImageTiling tiling_mode,
+    VkImageUsageFlags usage_flags,
+    VkMemoryPropertyFlags mem_properties
+);
+
+void transitionImageLayout(
+    VkDevice device,
+    VkCommandPool command_pool,
+    VkQueue queue,
+    VkImage image,
+    VkImageLayout old_layout,
+    VkImageLayout new_layout
+);
+
+void copyBufferToImage(
+    VkDevice device,
+    VkCommandPool command_pool,
+    VkQueue queue,
+    VkBuffer buffer,
+    VkImage image,
+    uint32_t width,
+    uint32_t height
 );
 
 // ================

@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <vulkan/vulkan_core.h>
 
 // cglm/affine-pre.h requires symbol included by affine.h
 #include "cglm/affine.h"  // IWYU pragma: keep
@@ -14,6 +13,9 @@
 #include "cglm/mat4.h"
 #include "cglm/util.h"
 #include "common.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
@@ -33,14 +35,14 @@ static const uint32_t DYNAMIC_STATES[] = {
 };
 
 static const struct Vertex VERTICES[] = {
-    {   {0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
-    {  {0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-    {  {0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-    { {0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}},
-    {  {-0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
-    { {-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-    { {-0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-    {{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}}
+    {   {0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+    {  {0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},
+    {  {0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+    { {0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
+    {  {-0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+    { {-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+    { {-0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+    {{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}}
 };
 static const uint16_t VERTEX_INDICES[] = {2, 3, 1, 2, 1, 0, 6, 7, 3, 6, 3, 2,
 					  6, 2, 0, 6, 0, 4, 6, 5, 7, 6, 4, 5,
@@ -129,7 +131,9 @@ static void createLogicalDevice(void)
 	    2
 	);
 
-	VkPhysicalDeviceFeatures device_feature = {0};
+	VkPhysicalDeviceFeatures device_feature = {
+	    .samplerAnisotropy = VK_TRUE
+	};
 
 	VkDeviceCreateInfo create_info = {
 	    .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -363,10 +367,19 @@ static void createDescriptorSetLayout(void)
 	    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
 	};
 
+	VkDescriptorSetLayoutBinding sampler_binding = {
+	    .binding = 1,
+	    .descriptorCount = 1,
+	    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+	    .pImmutableSamplers = NULL,
+	    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
+	};
+
 	VkDescriptorSetLayoutCreateInfo create_info = {
 	    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-	    .bindingCount = 1,
-	    .pBindings = &ubo_layout_binding
+	    .bindingCount = 2,
+	    .pBindings = (VkDescriptorSetLayoutBinding[]){ubo_layout_binding,
+							  sampler_binding}
 	};
 
 	if (vkCreateDescriptorSetLayout(
@@ -427,7 +440,7 @@ static void createGraphicPipeline(void)
 	VkPipelineVertexInputStateCreateInfo vertex_input_info = {
 	    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 	    .vertexBindingDescriptionCount = 1,
-	    .vertexAttributeDescriptionCount = 2,
+	    .vertexAttributeDescriptionCount = 3,
 	    .pVertexBindingDescriptions = &binding_desc,
 	    .pVertexAttributeDescriptions = attr_desc
 	};
@@ -641,6 +654,152 @@ static void createVertexBuffer(void)
 	vkFreeMemory(app_state.vulkan_device, staging_buffer_mem, NULL);
 }
 
+static void createTextureImage(void)
+{
+	int32_t width, height, channel;
+	stbi_uc *pixels = stbi_load(
+	    "../assets/xdd.png", &width, &height, &channel, STBI_rgb_alpha
+	);
+	VkDeviceSize image_size = width * height * 4;
+
+	if (pixels == NULL) {
+		printf("asset not found\n");
+		abort();
+	}
+
+	VkBuffer staging_buffer;
+	VkDeviceMemory staging_buffer_mem;
+
+	createBuffer(
+	    app_state.vulkan_device,
+	    app_state.physical_device,
+	    image_size,
+	    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+	    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+		| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+	    &staging_buffer,
+	    &staging_buffer_mem
+	);
+
+	void *data;
+	vkMapMemory(
+	    app_state.vulkan_device,
+	    staging_buffer_mem,
+	    0,
+	    image_size,
+	    0,
+	    &data
+	);
+	memcpy(data, pixels, image_size);
+	vkUnmapMemory(app_state.vulkan_device, staging_buffer_mem);
+	stbi_image_free(pixels);
+
+	createImage(
+	    app_state.vulkan_device,
+	    app_state.physical_device,
+	    &app_state.texture,
+	    &app_state.texture_buffer,
+	    width,
+	    height,
+	    VK_FORMAT_R8G8B8A8_SRGB,
+	    VK_IMAGE_TILING_OPTIMAL,
+	    VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+	    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+	);
+
+	transitionImageLayout(
+	    app_state.vulkan_device,
+	    app_state.command_pool,
+	    app_state.graphic_queue,
+	    app_state.texture,
+	    VK_IMAGE_LAYOUT_UNDEFINED,
+	    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+	);
+	copyBufferToImage(
+	    app_state.vulkan_device,
+	    app_state.command_pool,
+	    app_state.graphic_queue,
+	    staging_buffer,
+	    app_state.texture,
+	    width,
+	    height
+	);
+	transitionImageLayout(
+	    app_state.vulkan_device,
+	    app_state.command_pool,
+	    app_state.graphic_queue,
+	    app_state.texture,
+	    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+	    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+	);
+
+	vkDestroyBuffer(app_state.vulkan_device, staging_buffer, NULL);
+	vkFreeMemory(app_state.vulkan_device, staging_buffer_mem, NULL);
+}
+
+static void createTextureImageView(void)
+{
+	VkImageViewCreateInfo view_info = {
+	    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+	    .image = app_state.texture,
+	    .viewType = VK_IMAGE_VIEW_TYPE_2D,
+	    .format = VK_FORMAT_R8G8B8A8_SRGB,
+	    .subresourceRange = {
+				 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				 .baseMipLevel = 0,
+				 .levelCount = 1,
+				 .baseArrayLayer = 0,
+				 .layerCount = 1
+	    }
+	};
+
+	if (vkCreateImageView(
+		app_state.vulkan_device,
+		&view_info,
+		NULL,
+		&app_state.texture_view
+	    )
+	    != VK_SUCCESS) {
+		printf("Failed to create texture image view\n");
+		abort();
+	}
+}
+
+static void createTextureSampler(void)
+{
+	VkPhysicalDeviceProperties properties;
+	vkGetPhysicalDeviceProperties(app_state.physical_device, &properties);
+
+	VkSamplerCreateInfo create_info = {
+	    .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+	    .magFilter = VK_FILTER_LINEAR,
+	    .minFilter = VK_FILTER_LINEAR,
+	    .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+	    .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+	    .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+	    .anisotropyEnable = VK_TRUE,
+	    .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
+	    .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+	    .unnormalizedCoordinates = VK_FALSE,
+	    .compareEnable = VK_FALSE,
+	    .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+	    .mipLodBias = 0.0f,
+	    .minLod = 0.0f,
+	    .maxLod = 0.0f
+	};
+
+	if (vkCreateSampler(
+		app_state.vulkan_device,
+		&create_info,
+		NULL,
+		&app_state.texture_sampler
+	    )
+	    != VK_SUCCESS) {
+		printf("Failed to create texture sampler\n");
+		abort();
+	}
+}
+
 static void createIndexBuffer(void)
 {
 	VkDeviceSize buffer_size = sizeof(VERTEX_INDICES);
@@ -730,15 +889,20 @@ static void createUniformBuffer(void)
 
 static void createDescriptorPool(void)
 {
-	VkDescriptorPoolSize pool_size = {
+	VkDescriptorPoolSize ubo_pool_size = {
 	    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+	    .descriptorCount = MAX_FRAME_IN_FLIGHT
+	};
+	VkDescriptorPoolSize combined_sampler_pool_size = {
+	    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 	    .descriptorCount = MAX_FRAME_IN_FLIGHT
 	};
 
 	VkDescriptorPoolCreateInfo create_info = {
 	    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-	    .poolSizeCount = 1,
-	    .pPoolSizes = &pool_size,
+	    .poolSizeCount = 2,
+	    .pPoolSizes = (VkDescriptorPoolSize[]){ubo_pool_size,
+						   combined_sampler_pool_size},
 	    .maxSets = MAX_FRAME_IN_FLIGHT
 	};
 
@@ -786,7 +950,13 @@ static void createDescriptorSets(void)
 		    .range = sizeof(struct UniformBufferObject)
 		};
 
-		VkWriteDescriptorSet write_info = {
+		VkDescriptorImageInfo image_info = {
+		    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		    .imageView = app_state.texture_view,
+		    .sampler = app_state.texture_sampler
+		};
+
+		VkWriteDescriptorSet buffer_write_info = {
 		    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 		    .dstSet = app_state.descriptor_set[i],
 		    .dstBinding = 0,
@@ -796,8 +966,24 @@ static void createDescriptorSets(void)
 		    .pBufferInfo = &buffer_info
 		};
 
+		VkWriteDescriptorSet image_write_info = {
+		    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		    .dstSet = app_state.descriptor_set[i],
+		    .dstBinding = 1,
+		    .dstArrayElement = 0,
+		    .descriptorType =
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		    .descriptorCount = 1,
+		    .pImageInfo = &image_info
+		};
+
 		vkUpdateDescriptorSets(
-		    app_state.vulkan_device, 1, &write_info, 0, NULL
+		    app_state.vulkan_device,
+		    2,
+		    (VkWriteDescriptorSet[]){buffer_write_info,
+					     image_write_info},
+		    0,
+		    NULL
 		);
 	}
 }
@@ -943,6 +1129,9 @@ static void initVulkan(void)
 	createGraphicPipeline();
 	createFramebuffers();
 	createCommandPool();
+	createTextureImage();
+	createTextureImageView();
+	createTextureSampler();
 	createVertexBuffer();
 	createIndexBuffer();
 	createUniformBuffer();
@@ -1165,6 +1354,17 @@ static void mainLoop(void)
 static void cleanup(void)
 {
 	cleanupSwapchain();
+
+	vkDestroySampler(
+	    app_state.vulkan_device, app_state.texture_sampler, NULL
+	);
+
+	vkDestroyImageView(
+	    app_state.vulkan_device, app_state.texture_view, NULL
+	);
+
+	vkDestroyImage(app_state.vulkan_device, app_state.texture, NULL);
+	vkFreeMemory(app_state.vulkan_device, app_state.texture_buffer, NULL);
 
 	for (uint32_t i = 0; i < MAX_FRAME_IN_FLIGHT; i++) {
 		vkDestroyBuffer(

@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <vulkan/vk_platform.h>
+#include <vulkan/vulkan_core.h>
 
 #include "common.h"
 
@@ -115,8 +117,12 @@ bool isDeviceSuitable(
 	    details->formats != NULL && details->present_mode != NULL;
 	destroySwapchainSupportDetail(details);
 
+	VkPhysicalDeviceFeatures features;
+	vkGetPhysicalDeviceFeatures(device, &features);
+
 	return indices.has_value_bitmap != CANNOT_FIND_ALL_FAMILIES
-	    && adequate_swapchain_support;
+	    && adequate_swapchain_support
+	    && features.samplerAnisotropy;
 }
 
 struct QueueFamilyIndices findQueueFamilies(
@@ -380,7 +386,7 @@ void recordCommandBuffer(
 	}
 
 	VkClearValue clear_color = {
-	    .color = {.float32 = {0.0, 0.0, 0.0, 0.0}}
+	    .color = {.float32 = {0.5f, 0.5f, 0.5f, 1.0f}}
 	};
 	VkRenderPassBeginInfo render_pass_info = {
 	    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -475,7 +481,7 @@ VkVertexInputBindingDescription getVertexBindingDescription(void)
 VkVertexInputAttributeDescription *getAttributeDescription(void)
 {
 	VkVertexInputAttributeDescription *attribute_description =
-	    malloc(sizeof(VkVertexInputAttributeDescription) * 2);
+	    malloc(sizeof(VkVertexInputAttributeDescription) * 3);
 
 	attribute_description[0] = (VkVertexInputAttributeDescription){
 	    .binding = 0,
@@ -489,6 +495,13 @@ VkVertexInputAttributeDescription *getAttributeDescription(void)
 	    .location = 1,
 	    .format = VK_FORMAT_R32G32B32_SFLOAT,
 	    .offset = offsetof(struct Vertex, color)
+	};
+
+	attribute_description[2] = (VkVertexInputAttributeDescription){
+	    .binding = 0,
+	    .location = 2,
+	    .format = VK_FORMAT_R32G32_SFLOAT,
+	    .offset = offsetof(struct Vertex, texture_coordinate)
 	};
 
 	return attribute_description;
@@ -557,13 +570,61 @@ void createBuffer(
 	vkBindBufferMemory(device, *buffer, *buffer_memory, 0);
 }
 
-void copyBuffer(
+void createImage(
     VkDevice device,
-    VkCommandPool command_pool,
-    VkQueue queue,
-    VkBuffer src,
-    VkBuffer dst,
-    VkDeviceSize size
+    VkPhysicalDevice physical_device,
+    VkImage *texture,
+    VkDeviceMemory *texture_buffer,
+    uint32_t width,
+    uint32_t height,
+    VkFormat image_format,
+    VkImageTiling tiling_mode,
+    VkImageUsageFlags usage_flags,
+    VkMemoryPropertyFlags mem_properties
+)
+{
+	VkImageCreateInfo create_info = {
+	    .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+	    .imageType = VK_IMAGE_TYPE_2D,
+	    .extent = {.width = width, .height = height, .depth = 1},
+	    .mipLevels = 1,
+	    .arrayLayers = 1,
+	    .format = image_format,
+	    .tiling = tiling_mode,
+	    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+	    .usage = usage_flags,
+	    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+	    .samples = VK_SAMPLE_COUNT_1_BIT
+	};
+
+	if (vkCreateImage(device, &create_info, NULL, texture) != VK_SUCCESS) {
+		printf("Failed to create image\n");
+		abort();
+	}
+
+	VkMemoryRequirements requirement;
+	vkGetImageMemoryRequirements(device, *texture, &requirement);
+
+	VkMemoryAllocateInfo alloc_info = {
+	    .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+	    .allocationSize = requirement.size,
+	    .memoryTypeIndex = findMemoryType(
+		physical_device, requirement.memoryTypeBits, mem_properties
+	    )
+	};
+
+	if (vkAllocateMemory(device, &alloc_info, NULL, texture_buffer)
+	    != VK_SUCCESS) {
+		printf("Failed to allocate buffer for image\n");
+		abort();
+	}
+
+	vkBindImageMemory(device, *texture, *texture_buffer, 0);
+}
+
+static VkCommandBuffer beginCmdBuf(
+    VkDevice device,
+    VkCommandPool command_pool
 )
 {
 	VkCommandBufferAllocateInfo alloc_info = {
@@ -582,8 +643,17 @@ void copyBuffer(
 	};
 
 	vkBeginCommandBuffer(command_buffer, &begin_info);
-	VkBufferCopy copy_region = {.size = size};
-	vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
+
+	return command_buffer;
+}
+
+static void endCmdBuf(
+    VkDevice device,
+    VkCommandPool command_pool,
+    VkQueue queue,
+    VkCommandBuffer command_buffer
+)
+{
 	vkEndCommandBuffer(command_buffer);
 
 	VkSubmitInfo submit_info = {
@@ -595,4 +665,122 @@ void copyBuffer(
 	vkQueueWaitIdle(queue);
 
 	vkFreeCommandBuffers(device, command_pool, 1, &command_buffer);
+}
+
+void copyBuffer(
+    VkDevice device,
+    VkCommandPool command_pool,
+    VkQueue queue,
+    VkBuffer src,
+    VkBuffer dst,
+    VkDeviceSize size
+)
+{
+	VkCommandBuffer command_buffer = beginCmdBuf(device, command_pool);
+
+	VkBufferCopy copy_region = {.size = size};
+	vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
+
+	endCmdBuf(device, command_pool, queue, command_buffer);
+}
+
+void transitionImageLayout(
+    VkDevice device,
+    VkCommandPool command_pool,
+    VkQueue queue,
+    VkImage image,
+    VkImageLayout old_layout,
+    VkImageLayout new_layout
+)
+{
+	VkCommandBuffer command_buffer = beginCmdBuf(device, command_pool);
+
+	VkImageMemoryBarrier barrier = {
+	    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+	    .oldLayout = old_layout,
+	    .newLayout = new_layout,
+	    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+	    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+	    .image = image,
+	    .subresourceRange = {
+				 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				 .baseMipLevel = 0,
+				 .levelCount = 1,
+				 .baseArrayLayer = 0,
+				 .layerCount = 1
+	    },
+	};
+	VkPipelineStageFlags source_stage;
+	VkPipelineStageFlags dst_stage;
+
+	if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED
+	    && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+		barrier.srcAccessMask = 0;
+		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+	} else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+		   && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	} else {
+		printf("Unsupported args\n");
+		abort();
+	}
+
+	vkCmdPipelineBarrier(
+	    command_buffer,
+	    source_stage,
+	    dst_stage,
+	    0,
+	    0,
+	    NULL,
+	    0,
+	    NULL,
+	    1,
+	    &barrier
+	);
+
+	endCmdBuf(device, command_pool, queue, command_buffer);
+}
+
+void copyBufferToImage(
+    VkDevice device,
+    VkCommandPool command_pool,
+    VkQueue queue,
+    VkBuffer buffer,
+    VkImage image,
+    uint32_t width,
+    uint32_t height
+)
+{
+	VkCommandBuffer command_buffer = beginCmdBuf(device, command_pool);
+
+	VkBufferImageCopy region = {
+	    .bufferOffset = 0,
+	    .bufferRowLength = 0,
+	    .bufferImageHeight = 0,
+	    .imageSubresource =
+		{
+				   .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				   .mipLevel = 0,
+				   .baseArrayLayer = 0,
+				   .layerCount = 1,
+				   },
+	    .imageOffset = {				      0,      0,    0 },
+	    .imageExtent = {				  width, height,    1 }
+	};
+
+	vkCmdCopyBufferToImage(
+	    command_buffer,
+	    buffer,
+	    image,
+	    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+	    1,
+	    &region
+	);
+
+	endCmdBuf(device, command_pool, queue, command_buffer);
 }

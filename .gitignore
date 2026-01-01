@@ -3,4 +3,5 @@
 debug/
 release/
 include/cglm
+include/stb_image.h
 compile_commands.json
