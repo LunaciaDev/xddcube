@@ -359,8 +359,8 @@ VkShaderModule createShaderModule(
 
 	if (vkCreateShaderModule(device, &create_info, NULL, &shader_module)
 	    != VK_SUCCESS) {
-		printf("Cannot create shader module\n");
-		abort();
+		fprintf(stderr, "Cannot create shader module\n");
+		exit(1);
 	}
 
 	return shader_module;
@@ -380,8 +380,8 @@ void recordCommandBuffer(
 		app_state->command_buffer[current_frame], &begin_info
 	    )
 	    != VK_SUCCESS) {
-		printf("Failed to begin recording command buffer\n");
-		abort();
+		fprintf(stderr, "Failed to begin recording command buffer\n");
+		exit(1);
 	}
 
 	const VkClearValue clear_color = {
@@ -460,8 +460,8 @@ void recordCommandBuffer(
 
 	if (vkEndCommandBuffer(app_state->command_buffer[current_frame])
 	    != VK_SUCCESS) {
-		printf("Failed to end command buffer\n");
-		abort();
+		fprintf(stderr, "Failed to end command buffer\n");
+		exit(1);
 	}
 }
 
@@ -509,8 +509,8 @@ static uint32_t findMemoryType(
 		}
 	}
 
-	printf("Failed to find suitable memory types\n");
-	abort();
+	fprintf(stderr, "Failed to find suitable memory types\n");
+	exit(1);
 }
 
 void createBuffer(
@@ -531,8 +531,8 @@ void createBuffer(
 	};
 
 	if (vkCreateBuffer(device, &buffer_info, NULL, buffer) != VK_SUCCESS) {
-		printf("Failed to create vertex buffer\n");
-		abort();
+		fprintf(stderr, "Failed to create vertex buffer\n");
+		exit(1);
 	}
 
 	VkMemoryRequirements mem_requirement;
@@ -548,8 +548,8 @@ void createBuffer(
 
 	if (vkAllocateMemory(device, &allocate_info, NULL, buffer_memory)
 	    != VK_SUCCESS) {
-		printf("Failed to allocate vertex buffer memory\n");
-		abort();
+		fprintf(stderr, "Failed to allocate vertex buffer memory\n");
+		exit(1);
 	}
 
 	vkBindBufferMemory(device, *buffer, *buffer_memory, 0);
@@ -584,8 +584,8 @@ void createImage(
 	};
 
 	if (vkCreateImage(device, &create_info, NULL, texture) != VK_SUCCESS) {
-		printf("Failed to create image\n");
-		abort();
+		fprintf(stderr, "Failed to create image\n");
+		exit(1);
 	}
 
 	VkMemoryRequirements requirement;
@@ -601,8 +601,8 @@ void createImage(
 
 	if (vkAllocateMemory(device, &alloc_info, NULL, texture_buffer)
 	    != VK_SUCCESS) {
-		printf("Failed to allocate buffer for image\n");
-		abort();
+		fprintf(stderr, "Failed to allocate buffer for image\n");
+		exit(1);
 	}
 
 	vkBindImageMemory(device, *texture, *texture_buffer, 0);
@@ -714,8 +714,8 @@ void transitionImageLayout(
 		source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 		dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 	} else {
-		printf("Unsupported args\n");
-		abort();
+		fprintf(stderr, "Unsupported args\n");
+		exit(1);
 	}
 
 	vkCmdPipelineBarrier(

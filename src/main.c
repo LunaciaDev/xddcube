@@ -94,8 +94,8 @@ static void selectPhysicalDevice(void)
 	);
 
 	if (device_count == 0) {
-		printf("Cannot find any GPU with Vulkan support.\n");
-		abort();
+		fprintf(stderr, "Cannot find any GPU with Vulkan support.\n");
+		exit(1);
 	}
 
 	VkPhysicalDevice devices[device_count];
@@ -116,8 +116,8 @@ static void selectPhysicalDevice(void)
 	}
 
 	if (app_state.physical_device == VK_NULL_HANDLE) {
-		printf("Cannot find any suitable GPU.\n");
-		abort();
+		fprintf(stderr, "Cannot find any suitable GPU.\n");
+		exit(1);
 	}
 }
 
@@ -161,9 +161,9 @@ static void createLogicalDevice(void)
 		&app_state.vulkan_device
 	    )
 	    != VK_SUCCESS) {
-		printf("Failed to create logical device.\n");
+		fprintf(stderr, "Failed to create logical device.\n");
 		destroyQueueCreateInfo(queue_create_info);
-		abort();
+		exit(1);
 	}
 	destroyQueueCreateInfo(queue_create_info);
 
@@ -243,8 +243,8 @@ static void createSwapchain(void)
 		NULL,
 		&app_state.swapchain
 	    )) {
-		printf("Failed to create swapchain\n");
-		abort();
+		fprintf(stderr, "Failed to create swapchain\n");
+		exit(1);
 	}
 
 	vkGetSwapchainImagesKHR(
@@ -302,8 +302,8 @@ static void createImageView(void)
 			&app_state.swapchain_image_views[index]
 		    )
 		    != VK_SUCCESS) {
-			printf("Failed to create image view\n");
-			abort();
+			fprintf(stderr, "Failed to create image view\n");
+			exit(1);
 		}
 	}
 }
@@ -375,8 +375,8 @@ static void createRenderPass(void)
 		&app_state.render_pass
 	    )
 	    != VK_SUCCESS) {
-		printf("Cannot create render pass");
-		abort();
+		fprintf(stderr, "Cannot create render pass");
+		exit(1);
 	}
 }
 
@@ -411,8 +411,8 @@ static void createDescriptorSetLayout(void)
 		&app_state.descriptor_set_layout
 	    )
 	    != VK_SUCCESS) {
-		printf("Failed to create descriptor set layout\n");
-		abort();
+		fprintf(stderr, "Failed to create descriptor set layout\n");
+		exit(1);
 	}
 }
 
@@ -526,8 +526,8 @@ static void createGraphicPipeline(void)
 		&app_state.pipeline_layout
 	    )
 	    != VK_SUCCESS) {
-		printf("Cannot create pipeline layout\n");
-		abort();
+		fprintf(stderr, "Cannot create pipeline layout\n");
+		exit(1);
 	}
 
 	const VkGraphicsPipelineCreateInfo graphic_pipeline_info = {
@@ -555,8 +555,8 @@ static void createGraphicPipeline(void)
 		&app_state.pipeline
 	    )
 	    != VK_SUCCESS) {
-		printf("Failed to create graphic pipeline\n");
-		abort();
+		fprintf(stderr, "Failed to create graphic pipeline\n");
+		exit(1);
 	}
 
 	vkDestroyShaderModule(
@@ -601,8 +601,8 @@ static void createFramebuffers(void)
 			app_state.swapchain_frame_buffers + index
 		    )
 		    != VK_SUCCESS) {
-			printf("Failed to create framebuffer");
-			abort();
+			fprintf(stderr, "Failed to create framebuffer");
+			exit(1);
 		}
 	}
 }
@@ -686,8 +686,8 @@ static void createTextureImage(void)
 	const VkDeviceSize image_size = width * height * 4;
 
 	if (pixels == NULL) {
-		printf("asset not found\n");
-		abort();
+		fprintf(stderr, "asset not found\n");
+		exit(1);
 	}
 
 	VkBuffer staging_buffer;
@@ -784,8 +784,8 @@ static void createTextureImageView(void)
 		&app_state.texture_view
 	    )
 	    != VK_SUCCESS) {
-		printf("Failed to create texture image view\n");
-		abort();
+		fprintf(stderr, "Failed to create texture image view\n");
+		exit(1);
 	}
 }
 
@@ -819,8 +819,8 @@ static void createTextureSampler(void)
 		&app_state.texture_sampler
 	    )
 	    != VK_SUCCESS) {
-		printf("Failed to create texture sampler\n");
-		abort();
+		fprintf(stderr, "Failed to create texture sampler\n");
+		exit(1);
 	}
 }
 
@@ -863,8 +863,8 @@ static void createColorResource(void)
 		&app_state.color_image_view
 	    )
 	    != VK_SUCCESS) {
-		printf("Failed to create texture image view\n");
-		abort();
+		fprintf(stderr, "Failed to create texture image view\n");
+		exit(1);
 	}
 }
 
@@ -981,8 +981,8 @@ static void createDescriptorPool(void)
 		&app_state.descriptor_pool
 	    )
 	    != VK_SUCCESS) {
-		printf("Cannot create descriptor pool\n");
-		abort();
+		fprintf(stderr, "Cannot create descriptor pool\n");
+		exit(1);
 	}
 }
 
@@ -1007,8 +1007,8 @@ static void createDescriptorSets(void)
 		app_state.vulkan_device, &alloc_info, app_state.descriptor_set
 	    )
 	    != VK_SUCCESS) {
-		printf("Failed to allocate descriptor sets");
-		abort();
+		fprintf(stderr, "Failed to allocate descriptor sets");
+		exit(1);
 	}
 
 	for (uint32_t i = 0; i < MAX_FRAME_IN_FLIGHT; i++) {
@@ -1075,8 +1075,8 @@ static void createCommandBuffers(void)
 		app_state.command_buffer
 	    )
 	    != VK_SUCCESS) {
-		printf("Cannot allocate command buffer");
-		abort();
+		fprintf(stderr, "Cannot allocate command buffer");
+		exit(1);
 	}
 }
 
@@ -1115,8 +1115,8 @@ static void createSyncObjects(void)
 			   NULL,
 			   app_state.image_inflight + index
 		       ) != VK_SUCCESS) {
-			printf("Failed to create sync objects\n");
-			abort();
+			fprintf(stderr, "Failed to create sync objects\n");
+			exit(1);
 		}
 	}
 
@@ -1129,8 +1129,8 @@ static void createSyncObjects(void)
 			app_state.image_ready_read + index
 		    )
 		    != VK_SUCCESS) {
-			printf("Failed to create sync objects\n");
-			abort();
+			fprintf(stderr, "Failed to create sync objects\n");
+			exit(1);
 		}
 	}
 }
@@ -1141,8 +1141,8 @@ static void initVulkan(void)
 	if (!hasReqValidationLayerSupport(
 		VALIDATION_LAYERS_SIZE, VALIDATION_LAYERS
 	    )) {
-		printf("Requested validation layers support unavailable.\n");
-		abort();
+		fprintf(stderr, "Requested validation layers support unavailable.\n");
+		exit(1);
 	}
 #endif
 
@@ -1174,7 +1174,7 @@ static void initVulkan(void)
 
 	if (vkCreateInstance(&create_info, NULL, &app_state.vulkan_instance)
 	    != VK_SUCCESS) {
-		abort();
+		exit(1);
 	}
 
 	if (glfwCreateWindowSurface(
@@ -1184,8 +1184,8 @@ static void initVulkan(void)
 		&app_state.surface
 	    )
 	    != VK_SUCCESS) {
-		printf("Failed to create window surface\n");
-		abort();
+		fprintf(stderr, "Failed to create window surface\n");
+		exit(1);
 	}
 
 	selectPhysicalDevice();
@@ -1334,8 +1334,8 @@ static void drawFrame(
 		}
 
 		if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-			printf("Failed to acquire swapchain image");
-			abort();
+			fprintf(stderr, "Failed to acquire swapchain image");
+			exit(1);
 		}
 	}
 
@@ -1378,8 +1378,8 @@ static void drawFrame(
 		app_state.image_inflight[*current_frame]
 	    )
 	    != VK_SUCCESS) {
-		printf("Failed to submit draw command buffer\n");
-		abort();
+		fprintf(stderr, "Failed to submit draw command buffer\n");
+		exit(1);
 	}
 
 	const VkPresentInfoKHR present_info = {
@@ -1401,8 +1401,8 @@ static void drawFrame(
 			app_state.framebuffer_resized = false;
 			recreateSwapchain();
 		} else if (result != VK_SUCCESS) {
-			printf("Failed to present swapchain image");
-			abort();
+			fprintf(stderr, "Failed to present swapchain image");
+			exit(1);
 		}
 	}
 
