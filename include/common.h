@@ -64,10 +64,15 @@ struct AppState {
 	VkDeviceMemory *uniform_buffers_mem;
 	void **mapped_uniform_buffers;
 
-    VkImageView texture_view;
+	VkSampleCountFlagBits msaa_samples;
+    VkImage color_image;
+    VkDeviceMemory color_image_mem;
+    VkImageView color_image_view;
+
+	VkImageView texture_view;
 	VkImage texture;
 	VkDeviceMemory texture_buffer;
-    VkSampler texture_sampler;
+	VkSampler texture_sampler;
 
 	VkRenderPass render_pass;
 	VkDescriptorSetLayout descriptor_set_layout;
@@ -173,7 +178,8 @@ void createImage(
     VkFormat image_format,
     VkImageTiling tiling_mode,
     VkImageUsageFlags usage_flags,
-    VkMemoryPropertyFlags mem_properties
+    VkMemoryPropertyFlags mem_properties,
+    VkSampleCountFlagBits msaa_sample_count
 );
 
 void transitionImageLayout(
@@ -193,6 +199,10 @@ void copyBufferToImage(
     VkImage image,
     uint32_t width,
     uint32_t height
+);
+
+VkSampleCountFlagBits getMaxUsableSampleCount(
+    VkPhysicalDevice physical_device
 );
 
 // ================

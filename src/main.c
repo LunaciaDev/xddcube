@@ -50,7 +50,9 @@ static const uint16_t VERTEX_INDICES[] = {2, 3, 1, 2, 1, 0, 6, 7, 3, 6, 3, 2,
 const uint32_t INDICES_LEN =
     sizeof(VERTEX_INDICES) / sizeof(VERTEX_INDICES[0]);
 
-static struct AppState app_state = {.framebuffer_resized = false};
+static struct AppState app_state = {
+    .framebuffer_resized = false, .msaa_samples = VK_SAMPLE_COUNT_1_BIT
+};
 
 // =================================
 
@@ -107,6 +109,8 @@ static void selectPhysicalDevice(void)
 			devices[device_index], app_state.surface
 		    )) {
 			app_state.physical_device = devices[device_index];
+			app_state.msaa_samples =
+			    getMaxUsableSampleCount(app_state.physical_device);
 			break;
 		}
 	}
@@ -308,8 +312,19 @@ static void createRenderPass(void)
 {
 	VkAttachmentDescription color_attachment = {
 	    .format = app_state.swapchain_format,
-	    .samples = VK_SAMPLE_COUNT_1_BIT,
+	    .samples = app_state.msaa_samples,
 	    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+	    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+	    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+	    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+	    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+	    .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+	};
+
+	VkAttachmentDescription color_attachment_resolve = {
+	    .format = app_state.swapchain_format,
+	    .samples = VK_SAMPLE_COUNT_1_BIT,
+	    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 	    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 	    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 	    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
@@ -321,25 +336,32 @@ static void createRenderPass(void)
 	    .attachment = 0, .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
 	};
 
+	VkAttachmentReference color_attachment_resolve_ref = {
+	    .attachment = 1, .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+	};
+
 	VkSubpassDescription subpass = {
 	    .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
 	    .colorAttachmentCount = 1,
-	    .pColorAttachments = &color_attachment_ref
+	    .pColorAttachments = &color_attachment_ref,
+	    .pResolveAttachments = &color_attachment_resolve_ref
 	};
 
 	VkSubpassDependency subpass_dependency = {
 	    .srcSubpass = VK_SUBPASS_EXTERNAL,
 	    .dstSubpass = 0,
 	    .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-	    .srcAccessMask = 0,
+	    .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 	    .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 	    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 	};
 
 	VkRenderPassCreateInfo render_pass_info = {
 	    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-	    .attachmentCount = 1,
-	    .pAttachments = &color_attachment,
+	    .attachmentCount = 2,
+	    .pAttachments =
+		(VkAttachmentDescription[]){color_attachment,
+					    color_attachment_resolve},
 	    .subpassCount = 1,
 	    .pSubpasses = &subpass,
 	    .dependencyCount = 1,
@@ -473,7 +495,7 @@ static void createGraphicPipeline(void)
 	VkPipelineMultisampleStateCreateInfo multisample_info = {
 	    .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
 	    .sampleShadingEnable = VK_FALSE,
-	    .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT
+	    .rasterizationSamples = app_state.msaa_samples
 	};
 
 	VkPipelineColorBlendAttachmentState color_blend_attachment = {
@@ -558,13 +580,14 @@ static void createFramebuffers(void)
 	for (uint32_t index = 0; index < app_state.swapchain_image_size;
 	     index++) {
 		VkImageView attachment[] = {
+		    app_state.color_image_view,
 		    app_state.swapchain_image_views[index]
 		};
 
 		VkFramebufferCreateInfo frame_create_info = {
 		    .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
 		    .renderPass = app_state.render_pass,
-		    .attachmentCount = 1,
+		    .attachmentCount = 2,
 		    .pAttachments = attachment,
 		    .width = app_state.swapchain_extent.width,
 		    .height = app_state.swapchain_extent.height,
@@ -704,7 +727,8 @@ static void createTextureImage(void)
 	    VK_FORMAT_R8G8B8A8_SRGB,
 	    VK_IMAGE_TILING_OPTIMAL,
 	    VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-	    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+	    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+	    VK_SAMPLE_COUNT_1_BIT
 	);
 
 	transitionImageLayout(
@@ -796,6 +820,50 @@ static void createTextureSampler(void)
 	    )
 	    != VK_SUCCESS) {
 		printf("Failed to create texture sampler\n");
+		abort();
+	}
+}
+
+static void createColorResource(void)
+{
+	VkFormat color_format = app_state.swapchain_format;
+	createImage(
+	    app_state.vulkan_device,
+	    app_state.physical_device,
+	    &app_state.color_image,
+	    &app_state.color_image_mem,
+	    app_state.swapchain_extent.width,
+	    app_state.swapchain_extent.height,
+	    color_format,
+	    VK_IMAGE_TILING_OPTIMAL,
+	    VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT
+		| VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+	    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+	    app_state.msaa_samples
+	);
+
+	VkImageViewCreateInfo view_info = {
+	    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+	    .image = app_state.color_image,
+	    .viewType = VK_IMAGE_VIEW_TYPE_2D,
+	    .format = color_format,
+	    .subresourceRange = {
+				 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				 .baseMipLevel = 0,
+				 .levelCount = 1,
+				 .baseArrayLayer = 0,
+				 .layerCount = 1
+	    }
+	};
+
+	if (vkCreateImageView(
+		app_state.vulkan_device,
+		&view_info,
+		NULL,
+		&app_state.color_image_view
+	    )
+	    != VK_SUCCESS) {
+		printf("Failed to create texture image view\n");
 		abort();
 	}
 }
@@ -1124,6 +1192,7 @@ static void initVulkan(void)
 	createLogicalDevice();
 	createSwapchain();
 	createImageView();
+	createColorResource();
 	createRenderPass();
 	createDescriptorSetLayout();
 	createGraphicPipeline();
@@ -1143,6 +1212,12 @@ static void initVulkan(void)
 
 void cleanupSwapchain(void)
 {
+	vkDestroyImageView(
+	    app_state.vulkan_device, app_state.color_image_view, NULL
+	);
+	vkDestroyImage(app_state.vulkan_device, app_state.color_image, NULL);
+	vkFreeMemory(app_state.vulkan_device, app_state.color_image_mem, NULL);
+
 	for (uint32_t index = 0; index < app_state.swapchain_image_size;
 	     index++) {
 		vkDestroyFramebuffer(
@@ -1191,6 +1266,7 @@ void recreateSwapchain(void)
 
 	createSwapchain();
 	createImageView();
+	createColorResource();
 	createFramebuffers();
 }
 
