@@ -479,20 +479,13 @@ VkVertexInputBindingDescription getVertexBindingDescription(void)
 VkVertexInputAttributeDescription *getAttributeDescription(void)
 {
 	VkVertexInputAttributeDescription *attribute_description =
-	    malloc(sizeof(VkVertexInputAttributeDescription) * 3);
+	    malloc(sizeof(VkVertexInputAttributeDescription) * 1);
 
 	attribute_description[0] = (VkVertexInputAttributeDescription){
 	    .binding = 0,
 	    .location = 0,
 	    .format = VK_FORMAT_R32G32B32_SFLOAT,
 	    .offset = offsetof(struct Vertex, pos)
-	};
-
-	attribute_description[1] = (VkVertexInputAttributeDescription){
-	    .binding = 0,
-	    .location = 1,
-	    .format = VK_FORMAT_R32G32B32_SFLOAT,
-	    .offset = offsetof(struct Vertex, color)
 	};
 
 	return attribute_description;

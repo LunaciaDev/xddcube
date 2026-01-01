@@ -14,7 +14,6 @@ extern const uint32_t INDICES_LEN;
 
 struct Vertex {
 	vec3 pos;
-	vec3 color;
 };
 
 struct UniformBufferObject {
